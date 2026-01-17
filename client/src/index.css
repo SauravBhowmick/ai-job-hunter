@@ -134,24 +134,11 @@
 }
 
 @layer components {
-  /**
-   * Custom container utility that centers content and adds responsive padding.
-   *
-   * This overrides Tailwind's default container behavior to:
-   * - Auto-center content (mx-auto)
-   * - Add responsive horizontal padding
-   * - Set max-width for large screens
-   *
-   * Usage: <div className="container">...</div>
-   *
-   * For custom widths, use max-w-* utilities directly:
-   * <div className="max-w-6xl mx-auto px-4">...</div>
-   */
   .container {
     width: 100%;
     margin-left: auto;
     margin-right: auto;
-    padding-left: 1rem; /* 16px - mobile padding */
+    padding-left: 1rem;
     padding-right: 1rem;
   }
 
@@ -162,16 +149,89 @@
 
   @media (min-width: 640px) {
     .container {
-      padding-left: 1.5rem; /* 24px - tablet padding */
+      padding-left: 1.5rem;
       padding-right: 1.5rem;
     }
   }
 
   @media (min-width: 1024px) {
     .container {
-      padding-left: 2rem; /* 32px - desktop padding */
+      padding-left: 2rem;
       padding-right: 2rem;
-      max-width: 1280px; /* Standard content width */
+      max-width: 1400px;
     }
+  }
+
+  /* Job card hover effect */
+  .job-card {
+    @apply transition-all duration-200;
+  }
+
+  .job-card:hover {
+    @apply border-primary/50 shadow-lg;
+    transform: translateY(-2px);
+  }
+
+  /* Score badge colors */
+  .score-high {
+    @apply bg-green-500/20 text-green-400 border-green-500/30;
+  }
+
+  .score-medium {
+    @apply bg-yellow-500/20 text-yellow-400 border-yellow-500/30;
+  }
+
+  .score-low {
+    @apply bg-muted text-muted-foreground border-border;
+  }
+
+  /* Status badges */
+  .status-pending {
+    @apply bg-muted text-muted-foreground;
+  }
+
+  .status-submitted {
+    @apply bg-primary/20 text-primary;
+  }
+
+  .status-interview {
+    @apply bg-green-500/20 text-green-400;
+  }
+
+  .status-accepted {
+    @apply bg-green-500/30 text-green-400;
+  }
+
+  .status-rejected {
+    @apply bg-destructive/20 text-destructive;
+  }
+
+  /* Source badges */
+  .source-linkedin {
+    @apply bg-blue-500/20 text-blue-400 border-blue-500/30;
+  }
+
+  .source-indeed {
+    @apply bg-purple-500/20 text-purple-400 border-purple-500/30;
+  }
+
+  .source-stepstone {
+    @apply bg-orange-500/20 text-orange-400 border-orange-500/30;
+  }
+
+  .source-energy_jobline {
+    @apply bg-green-500/20 text-green-400 border-green-500/30;
+  }
+
+  .source-datacareer {
+    @apply bg-cyan-500/20 text-cyan-400 border-cyan-500/30;
+  }
+
+  /* Gradient text */
+  .gradient-text {
+    background: linear-gradient(135deg, var(--primary), var(--chart-1));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
 }
