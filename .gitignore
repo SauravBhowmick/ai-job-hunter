@@ -117,9 +117,6 @@ temp/
 # Vite
 .vite/
 
-# Drizzle
-drizzle/
-
 # Test
 test-results/
 playwright-report/
