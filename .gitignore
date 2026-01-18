@@ -105,3 +105,22 @@ temp/
 *.db
 *.sqlite
 *.sqlite3
+*.db-shm
+*.db-wal
+
+# Railway
+.railway/
+
+# Vercel
+.vercel/
+
+# Vite
+.vite/
+
+# Drizzle
+drizzle/
+
+# Test
+test-results/
+playwright-report/
+playwright/.cache/
