@@ -1,28 +1,32 @@
-# AI Job Hunter 🎯
+# AI Job Hunter
 
-An intelligent job application tracking and automation system that helps you discover, score, and apply to relevant job opportunities in the data science and energy sectors.
+An intelligent job application tracking and automation system that helps you discover, score, and apply to relevant job opportunities.
 
 ## Features
 
-### 🔍 Smart Job Discovery
-- Automated job scraping from multiple sources (LinkedIn, Indeed, Stepstone, Energy Jobline, DataCareer)
+### Smart Job Discovery
+
+- Automated job aggregation from multiple sources (LinkedIn, Indeed, Stepstone, Energy Jobline, DataCareer)
 - Intelligent relevance scoring based on your skills and preferences
 - Real-time job notifications via email
 - Keyword-based filtering and matching
 
-### 🤖 Auto-Apply System
-- Learn from your manual applications to identify patterns
-- Automatically apply to jobs matching your preferences
+### Auto-Apply System
+
+- Learns from your manual applications to identify patterns
+- Automatically applies to jobs matching your preferences
 - Confidence scoring for application decisions
 - Pattern-based job matching
 
-### 📊 Analytics & Tracking
+### Analytics and Tracking
+
 - Application statistics and success rates
 - Application trend analysis over time
 - Status tracking (pending, submitted, interview, rejected, accepted)
 - Detailed application history
 
-### 👤 User Profile Management
+### User Profile Management
+
 - Custom skill profiles
 - Preferred job titles and locations
 - Configurable relevance thresholds
@@ -31,185 +35,182 @@ An intelligent job application tracking and automation system that helps you dis
 ## Tech Stack
 
 ### Backend
-- **Node.js** with **Express** server
-- **tRPC** for type-safe API routes
-- **Drizzle ORM** with MySQL database
-- **Jose** for JWT authentication
-- **Axios** for HTTP requests
+
+- Node.js with Express
+- tRPC for type-safe API routes
+- Drizzle ORM with MySQL
+- Jose for JWT authentication
 
 ### Frontend
-- **React** with **Vite**
-- **Tailwind CSS** for styling
-- **SuperJSON** for data serialization
+
+- React with Vite
+- Tailwind CSS
+- SuperJSON for data serialization
 - Type-safe tRPC client
 
 ### Authentication
+
 - OAuth 2.0 integration
 - Session-based authentication with cookies
 - JWT token verification
 
 ## Database Schema
 
-The application uses MySQL with the following main tables:
+The application uses MySQL with the following tables:
 
-- `users` - User accounts and authentication
-- `user_profiles` - User preferences and settings
-- `jobs` - Job listings from various sources
-- `job_scores` - Relevance scores for each user/job pair
-- `applications` - Application tracking
-- `application_patterns` - Learned patterns from user behavior
-- `search_filters` - Saved search preferences
-- `email_notifications` - Notification history
-- `refresh_logs` - Job refresh activity logs
+| Table | Description |
+|-------|-------------|
+| `users` | User accounts and authentication |
+| `user_profiles` | User preferences and settings |
+| `jobs` | Job listings from various sources |
+| `job_scores` | Relevance scores for each user/job pair |
+| `applications` | Application tracking |
+| `application_patterns` | Learned patterns from user behavior |
+| `search_filters` | Saved search preferences |
+| `email_notifications` | Notification history |
+| `refresh_logs` | Job refresh activity logs |
 
-## Environment Variables
+## Getting Started
 
-Create a `.env` file in the root directory:
+### Prerequisites
 
-```env
-# App Configuration
-VITE_APP_ID=your_app_id
-NODE_ENV=development
-PORT=3000
+- Node.js 18+
+- pnpm
+- MySQL database
 
-# Database
-DATABASE_URL=mysql://user:password@host:port/database
-
-# Authentication
-JWT_SECRET=your_jwt_secret
-OAUTH_SERVER_URL=your_oauth_server_url
-OWNER_OPEN_ID=your_owner_open_id
-
-# Notifications
-BUILT_IN_FORGE_API_URL=your_notification_api_url
-BUILT_IN_FORGE_API_KEY=your_notification_api_key
-```
-
-## Installation
+### Installation
 
 1. Clone the repository:
+
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/SauravBhowmick/ai-job-hunter.git
 cd ai-job-hunter
 ```
 
 2. Install dependencies:
+
 ```bash
-npm install
+pnpm install
 ```
 
-3. Set up your database:
-```bash
-# Run database migrations
-npm run db:push
-```
+3. Create a `.env` file in the root directory (see `.env.example` for reference).
 
-4. Configure environment variables (see above)
+4. Run database migrations:
+
+```bash
+pnpm db:push
+```
 
 5. Start the development server:
+
 ```bash
-npm run dev
+pnpm dev
 ```
+
+## Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `VITE_APP_ID` | Application identifier |
+| `NODE_ENV` | Environment (development/production) |
+| `PORT` | Server port (default: 3000) |
+| `DATABASE_URL` | MySQL connection string |
+| `JWT_SECRET` | Secret key for JWT tokens |
+| `OAUTH_SERVER_URL` | OAuth provider URL |
+| `OWNER_OPEN_ID` | Owner's OpenID identifier |
+| `BUILT_IN_FORGE_API_URL` | Notification API URL |
+| `BUILT_IN_FORGE_API_KEY` | Notification API key |
 
 ## Usage
 
-### For Users
+### Setting Up Your Profile
 
-1. **Sign up/Login**: Authenticate using OAuth (Google, Microsoft, GitHub, etc.)
+1. Sign up or log in using OAuth (Google, Microsoft, GitHub, etc.)
+2. Complete your profile with skills, experience, and preferences
+3. Set your preferred job titles and locations
+4. Configure your notification email
 
-2. **Complete Your Profile**: 
-   - Add your skills, experience, and preferences
-   - Set your preferred job titles and locations
-   - Configure notification email
+### Browsing and Applying
 
-3. **Browse Jobs**:
-   - View automatically scored job listings
-   - Filter by relevance score, location, and source
-   - See matched keywords for each job
+1. View automatically scored job listings
+2. Filter by relevance score, location, and source
+3. Apply manually with custom cover letters, or enable auto-apply
+4. Track your application status through the dashboard
 
-4. **Apply to Jobs**:
-   - Apply manually with custom cover letters
-   - Enable auto-apply for hands-free applications
-   - Track application status
+### Monitoring Progress
 
-5. **Monitor Progress**:
-   - View analytics dashboard
-   - Track success rates
-   - Review application history
+- View analytics dashboard for success rates
+- Review application history
+- Track trends over time
 
-### API Routes
+## API Routes
 
-All API routes are exposed via tRPC at `/api/trpc`:
+All routes are exposed via tRPC at `/api/trpc`:
 
-- `auth.me` - Get current user
-- `auth.logout` - Logout user
-- `profile.get` - Get user profile
-- `profile.update` - Update profile
-- `jobs.list` - List jobs with scores
-- `jobs.refresh` - Refresh job listings
-- `applications.list` - List applications
-- `applications.submitApplication` - Apply to a job
-- `autoApply.getCandidates` - Get auto-apply candidates
-- `autoApply.run` - Run auto-apply process
-- `analytics.getOverview` - Get analytics overview
+| Route | Description |
+|-------|-------------|
+| `auth.me` | Get current user |
+| `auth.logout` | Log out user |
+| `profile.get` | Get user profile |
+| `profile.update` | Update profile |
+| `jobs.list` | List jobs with scores |
+| `jobs.refresh` | Refresh job listings |
+| `applications.list` | List applications |
+| `applications.submitApplication` | Apply to a job |
+| `autoApply.getCandidates` | Get auto-apply candidates |
+| `autoApply.run` | Run auto-apply process |
+| `analytics.getOverview` | Get analytics overview |
 
-## Development
-
-### Project Structure
+## Project Structure
 
 ```
-├── client/              # Frontend React application
+ai-job-hunter/
+├── client/                 # Frontend React application
 │   ├── src/
 │   ├── public/
 │   └── index.html
-├── server/              # Backend Express server
-│   ├── _core/          # Core server utilities
-│   ├── routers.ts      # tRPC routers
-│   ├── db.ts           # Database operations
-│   └── services/       # Business logic
-├── shared/             # Shared types and constants
-├── drizzle/            # Database schema
-└── vite.config.ts      # Vite configuration
+├── server/                 # Backend Express server
+│   ├── _core/             # Core server utilities
+│   ├── routers.ts         # tRPC routers
+│   ├── db.ts              # Database operations
+│   └── services/          # Business logic
+├── shared/                # Shared types and constants
+├── drizzle/               # Database schema and migrations
+├── patches/               # Package patches
+├── drizzle.config.ts      # Drizzle configuration
+├── vite.config.ts         # Vite configuration
+└── vitest.config.ts       # Vitest configuration
 ```
 
-### Running in Development
-
-```bash
-npm run dev
-```
-
-This starts both the Vite dev server and the Express backend.
-
-### Building for Production
-
-```bash
-npm run build
-npm start
-```
-
-## Key Algorithms
+## How It Works
 
 ### Job Relevance Scoring
 
-Jobs are scored based on:
-- High priority keywords (10 points each): data scientist, machine learning, energy systems, etc.
-- Medium priority keywords (5 points each): data analyst, automation, research, etc.
-- Low priority keywords (2 points each): engineer, scientist, researcher, etc.
-- User-specific skills (8 points each)
+Jobs are scored based on keyword matching:
 
-Scores are normalized to 0-100 range.
+| Priority | Points | Examples |
+|----------|--------|----------|
+| High | 10 | data scientist, machine learning, energy systems |
+| Medium | 5 | data analyst, automation, research |
+| Low | 2 | engineer, scientist, researcher |
+| User skills | 8 | Based on your profile |
+
+Scores are normalized to a 0 to 100 range.
 
 ### Auto-Apply Pattern Matching
 
-The system learns from manual applications and creates patterns based on:
-- Matched keywords (40 points for 2+ matches)
-- Company matches (30 points)
-- Location matches (20 points)
-- Text content matches (up to 30 points)
+The system learns from your manual applications:
 
-Jobs with 70%+ pattern confidence are auto-applied.
+| Factor | Points |
+|--------|--------|
+| Matched keywords (2+) | 40 |
+| Company match | 30 |
+| Location match | 20 |
+| Text content match | Up to 30 |
 
-## Security Features
+Jobs with 70% or higher pattern confidence are auto-applied.
+
+## Security
 
 - HttpOnly cookies for session management
 - CSRF protection with SameSite cookies
@@ -217,18 +218,31 @@ Jobs with 70%+ pattern confidence are auto-applied.
 - JWT token verification
 - Role-based access control (user/admin)
 
-## License
+## Deployment
 
-MIT
+The project includes configuration for both Railway and Vercel:
+
+- `railway.json` for Railway deployment
+- `vercel.json` for Vercel deployment
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome. Please feel free to submit a Pull Request.
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
+## Disclaimer
+
+This tool aggregates job listings from various sources. Please ensure your use complies with the terms of service of each platform. The developers are not responsible for any misuse of this software.
 
 ## Support
 
-For issues and questions, please open an issue on GitHub or contact the maintainer.
-
----
-
-Built with ❤️ for data scientists seeking their next opportunity in the energy sector.
+For issues and questions, please open an issue on GitHub.
