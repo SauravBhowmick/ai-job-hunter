@@ -13,6 +13,43 @@ import {
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
+// Add this helper function at the top of the file
+async function withErrorHandling<T>(
+  operation: () => Promise<T>,
+  context: string
+): Promise<T | undefined> {
+  try {
+    return await operation();
+  } catch (error) {
+    console.error(`[DB Error] ${context}:`, error);
+    throw error; // Re-throw to let caller handle
+  }
+}
+
+// Then wrap critical functions
+async function getUserByOpenId(openId: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+
+  return withErrorHandling(
+    async () => {
+      const result = await db.select()
+        .from(users)
+        .where(eq(users.openId, openId))
+        .limit(1);
+      return result.length > 0 ? result[0] : undefined;
+    },
+    `getUserByOpenId(${openId})`
+  );
+}
+
+// Apply similar pattern to other critical functions:
+// - getUserProfile
+// - upsertUser
+// - upsertUserProfile
+// - getJobById
+// - createApplication
+
 let _db: ReturnType<typeof drizzle> | null = null;
 
 export async function getDb() {

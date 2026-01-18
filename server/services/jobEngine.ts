@@ -225,24 +225,38 @@ export async function refreshJobs(userId?: number): Promise<{ jobsFound: number;
 }
 
 // Score all jobs for a user
-export async function scoreJobsForUser(userId: number, userSkills?: string[]): Promise<number> {
-  const jobs = await db.getJobs({ limit: 500 });
-  let scoredCount = 0;
+export async function scoreJobsForUser(userId: number, userSkills: string[]) {
+  const jobs = await getJobs({ limit: 500 });
+  const scores = [];
   
+  // Calculate all scores in memory
   for (const job of jobs) {
     const { score, matchedKeywords } = calculateRelevanceScore(job, userSkills);
-    
-    await db.upsertJobScore({
+    scores.push({
       jobId: job.id,
-      userId: userId,
+      userId,
       relevanceScore: score,
-      matchedKeywords: matchedKeywords,
+      matchedKeywords
     });
-    
-    scoredCount++;
   }
   
-  return scoredCount;
+  // Single batch operation instead of 500+ individual queries
+  if (scores.length > 0) {
+    const db = await getDb();
+    if (!db) return 0;
+    
+    await db.insert(jobScores)
+      .values(scores)
+      .onDuplicateKeyUpdate({
+        set: {
+          relevanceScore: sql`VALUES(relevanceScore)`,
+          matchedKeywords: sql`VALUES(matchedKeywords)`,
+          calculatedAt: new Date()
+        }
+      });
+  }
+  
+  return scores.length;
 }
 
 // Get jobs matching user criteria

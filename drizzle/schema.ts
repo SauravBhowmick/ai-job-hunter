@@ -1,4 +1,54 @@
 import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, json, boolean, float } from "drizzle-orm/mysql-core";
+import { index } from "drizzle-orm/mysql-core";
+
+// Update jobs table
+var jobs = mysqlTable("jobs", {
+  id: int("id").autoincrement().primaryKey(),
+  externalId: varchar("externalId", { length: 255 }),
+  source: mysqlEnum("source", ["linkedin", "indeed", "stepstone", "energy_jobline", "datacareer"]).notNull(),
+  title: varchar("title", { length: 500 }).notNull(),
+  company: varchar("company", { length: 255 }),
+  location: varchar("location", { length: 255 }),
+  description: text("description"),
+  requirements: text("requirements"),
+  salary: varchar("salary", { length: 100 }),
+  jobType: varchar("jobType", { length: 100 }),
+  url: text("url"),
+  postedAt: timestamp("postedAt"),
+  scrapedAt: timestamp("scrapedAt").defaultNow().notNull(),
+  isActive: boolean("isActive").default(true),
+  keywords: json("keywords").$type<string[]>(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
+}, (table) => ({
+  sourceIdx: index('idx_jobs_source').on(table.source),
+  postedAtIdx: index('idx_jobs_posted_at').on(table.postedAt),
+  activeIdx: index('idx_jobs_active').on(table.isActive),
+  externalIdIdx: index('idx_jobs_external_id').on(table.externalId),
+}));
+
+// Update applications table
+var applications = mysqlTable("applications", {
+  // ... existing fields
+}, (table) => ({
+  userStatusIdx: index('idx_applications_user_status').on(table.userId, table.status),
+  jobIdx: index('idx_applications_job').on(table.jobId),
+}));
+
+// Update job_scores table
+var jobScores = mysqlTable("job_scores", {
+  // ... existing fields
+}, (table) => ({
+  userScoreIdx: index('idx_job_scores_user_score').on(table.userId, table.relevanceScore),
+  jobUserIdx: index('idx_job_scores_job_user').on(table.jobId, table.userId),
+}));
+
+// Update users table
+var users = mysqlTable("users", {
+  // ... existing fields
+}, (table) => ({
+  openIdIdx: index('idx_users_open_id').on(table.openId),
+}));
 
 /**
  * Core user table backing auth flow.
