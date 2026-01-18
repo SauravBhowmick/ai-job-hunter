@@ -7,6 +7,10 @@ import { registerOAuthRoutes } from "./oauth";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
+// Add this import at the top
+import { apiLimiter, authLimiter } from './rateLimit';
+
+
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -35,6 +39,24 @@ async function startServer() {
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
+  // Health check endpoint
+  app.get('/health', async (req, res) => {
+    try {
+      res.json({
+        status: 'ok',
+        timestamp: Date.now(),
+        uptime: process.uptime(),
+        environment: process.env.NODE_ENV || 'development'
+      });
+    } catch (error) {
+      res.status(503).json({
+        status: 'error',
+        timestamp: Date.now(),
+        error: 'Service unhealthy'
+      });
+    }
+  });
+
   // OAuth callback under /api/oauth/callback
   registerOAuthRoutes(app);
 
@@ -46,6 +68,10 @@ async function startServer() {
       createContext,
     })
   );
+
+  // Add these lines after body parser middleware
+  app.use('/api/', apiLimiter);
+  app.use('/api/oauth/', authLimiter);
 
   // Development mode uses Vite, production mode uses static files
   if (process.env.NODE_ENV === "development") {
