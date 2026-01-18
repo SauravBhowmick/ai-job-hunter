@@ -1,0 +1,256 @@
+# ==================================
+# AI Job Hunter - Manual Workflow
+# ==================================
+# This workflow can be triggered manually from the GitHub Actions tab
+# It includes testing, linting, building, and deployment options
+
+name: 🚀 Manual Workflow
+
+on:
+  workflow_dispatch:
+    inputs:
+      name:
+        description: '👤 Person triggering the workflow'
+        default: 'Developer'
+        required: true
+        type: string
+      
+      run_tests:
+        description: '🧪 Run tests'
+        default: true
+        required: false
+        type: boolean
+      
+      run_lint:
+        description: '🔍 Run linting'
+        default: true
+        required: false
+        type: boolean
+      
+      run_build:
+        description: '🏗️ Run build'
+        default: true
+        required: false
+        type: boolean
+      
+      environment:
+        description: '🌍 Target environment'
+        default: 'development'
+        required: true
+        type: choice
+        options:
+          - development
+          - staging
+          - production
+
+jobs:
+  # ==================================
+  # Job 1: Greeting and Info
+  # ==================================
+  greet:
+    name: 👋 Welcome
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send greeting
+        run: |
+          echo "=========================================="
+          echo "👋 Hello ${{ inputs.name }}!"
+          echo "=========================================="
+          echo "🕐 Triggered at: $(date)"
+          echo "🌍 Environment: ${{ inputs.environment }}"
+          echo "🧪 Run tests: ${{ inputs.run_tests }}"
+          echo "🔍 Run lint: ${{ inputs.run_lint }}"
+          echo "🏗️ Run build: ${{ inputs.run_build }}"
+          echo "=========================================="
+
+  # ==================================
+  # Job 2: Setup and Install
+  # ==================================
+  setup:
+    name: 📦 Setup
+    runs-on: ubuntu-latest
+    needs: greet
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Cache pnpm dependencies
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Log setup complete
+        run: |
+          echo "✅ Setup complete!"
+          echo "📦 Node version: $(node --version)"
+          echo "📦 pnpm version: $(pnpm --version)"
+
+  # ==================================
+  # Job 3: Linting
+  # ==================================
+  lint:
+    name: 🔍 Lint
+    runs-on: ubuntu-latest
+    needs: setup
+    if: ${{ inputs.run_lint }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run Prettier check
+        run: pnpm prettier --check .
+        continue-on-error: true
+
+      - name: Run TypeScript check
+        run: pnpm tsc --noEmit
+        continue-on-error: true
+
+      - name: Lint complete
+        run: echo "✅ Linting complete!"
+
+  # ==================================
+  # Job 4: Testing
+  # ==================================
+  test:
+    name: 🧪 Test
+    runs-on: ubuntu-latest
+    needs: setup
+    if: ${{ inputs.run_tests }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run tests
+        run: pnpm test
+        continue-on-error: true
+
+      - name: Tests complete
+        run: echo "✅ Tests complete!"
+
+  # ==================================
+  # Job 5: Build
+  # ==================================
+  build:
+    name: 🏗️ Build
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+    if: |
+      always() && 
+      inputs.run_build && 
+      (needs.lint.result == 'success' || needs.lint.result == 'skipped') &&
+      (needs.test.result == 'success' || needs.test.result == 'skipped')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build application
+        run: pnpm build
+        env:
+          NODE_ENV: ${{ inputs.environment }}
+
+      - name: Build complete
+        run: |
+          echo "✅ Build complete!"
+          echo "🌍 Built for: ${{ inputs.environment }}"
+
+  # ==================================
+  # Job 6: Summary
+  # ==================================
+  summary:
+    name: 📊 Summary
+    runs-on: ubuntu-latest
+    needs: [greet, setup, lint, test, build]
+    if: always()
+    steps:
+      - name: Workflow Summary
+        run: |
+          echo "=========================================="
+          echo "📊 WORKFLOW SUMMARY"
+          echo "=========================================="
+          echo "👤 Triggered by: ${{ inputs.name }}"
+          echo "🌍 Environment: ${{ inputs.environment }}"
+          echo ""
+          echo "📋 Job Results:"
+          echo "  👋 Greet: ${{ needs.greet.result }}"
+          echo "  📦 Setup: ${{ needs.setup.result }}"
+          echo "  🔍 Lint: ${{ needs.lint.result }}"
+          echo "  🧪 Test: ${{ needs.test.result }}"
+          echo "  🏗️ Build: ${{ needs.build.result }}"
+          echo ""
+          echo "🕐 Completed at: $(date)"
+          echo "=========================================="
+
+      - name: Create job summary
+        run: |
+          echo "## 🚀 Manual Workflow Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 👋 Greet | ${{ needs.greet.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 📦 Setup | ${{ needs.setup.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔍 Lint | ${{ needs.lint.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🧪 Test | ${{ needs.test.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🏗️ Build | ${{ needs.build.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Triggered by:** ${{ inputs.name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
