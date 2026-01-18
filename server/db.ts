@@ -26,23 +26,6 @@ async function withErrorHandling<T>(
   }
 }
 
-// Then wrap critical functions
-async function getUserByOpenId(openId: string) {
-  const db = await getDb();
-  if (!db) return undefined;
-
-  return withErrorHandling(
-    async () => {
-      const result = await db.select()
-        .from(users)
-        .where(eq(users.openId, openId))
-        .limit(1);
-      return result.length > 0 ? result[0] : undefined;
-    },
-    `getUserByOpenId(${openId})`
-  );
-}
-
 // Apply similar pattern to other critical functions:
 // - getUserProfile
 // - upsertUser
