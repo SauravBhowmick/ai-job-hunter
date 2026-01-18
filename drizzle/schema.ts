@@ -1,21 +1,6 @@
 import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, json, boolean, float } from "drizzle-orm/mysql-core";
 import { index } from "drizzle-orm/mysql-core";
 
-// Update job_scores table
-var jobScores = mysqlTable("job_scores", {
-  // ... existing fields
-}, (table) => ({
-  userScoreIdx: index('idx_job_scores_user_score').on(table.userId, table.relevanceScore),
-  jobUserIdx: index('idx_job_scores_job_user').on(table.jobId, table.userId),
-}));
-
-// Update users table
-var users = mysqlTable("users", {
-  // ... existing fields
-}, (table) => ({
-  openIdIdx: index('idx_users_open_id').on(table.openId),
-}));
-
 /**
  * Core user table backing auth flow.
  */
