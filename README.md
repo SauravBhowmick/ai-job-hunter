@@ -1,38 +1,38 @@
-# AI Job Hunter
+# 🎯 AI Job Hunter
 
 An intelligent job application tracking and automation system that helps you discover, score, and apply to relevant job opportunities.
 
-## Features
+## ✨ Features
 
-### Smart Job Discovery
+### 🔍 Smart Job Discovery
 
 - Automated job aggregation from multiple sources (LinkedIn, Indeed, Stepstone, Energy Jobline, DataCareer)
 - Intelligent relevance scoring based on your skills and preferences
 - Real-time job notifications via email
 - Keyword-based filtering and matching
 
-### Auto-Apply System
+### 🤖 Auto-Apply System
 
 - Learns from your manual applications to identify patterns
 - Automatically applies to jobs matching your preferences
 - Confidence scoring for application decisions
 - Pattern-based job matching
 
-### Analytics and Tracking
+### 📊 Analytics and Tracking
 
 - Application statistics and success rates
 - Application trend analysis over time
 - Status tracking (pending, submitted, interview, rejected, accepted)
 - Detailed application history
 
-### User Profile Management
+### 👤 User Profile Management
 
 - Custom skill profiles
 - Preferred job titles and locations
 - Configurable relevance thresholds
 - Auto-apply preferences
 
-## Tech Stack
+## 🛠️ Tech Stack
 
 ### Backend
 
@@ -54,7 +54,7 @@ An intelligent job application tracking and automation system that helps you dis
 - Session-based authentication with cookies
 - JWT token verification
 
-## Database Schema
+## 🗄️ Database Schema
 
 The application uses MySQL with the following tables:
 
@@ -70,7 +70,7 @@ The application uses MySQL with the following tables:
 | `email_notifications` | Notification history |
 | `refresh_logs` | Job refresh activity logs |
 
-## Getting Started
+## 🚀 Getting Started
 
 ### Prerequisites
 
@@ -107,7 +107,7 @@ pnpm db:push
 pnpm dev
 ```
 
-## Environment Variables
+## ⚙️ Environment Variables
 
 | Variable | Description |
 |----------|-------------|
@@ -121,7 +121,7 @@ pnpm dev
 | `BUILT_IN_FORGE_API_URL` | Notification API URL |
 | `BUILT_IN_FORGE_API_KEY` | Notification API key |
 
-## Usage
+## 📖 Usage
 
 ### Setting Up Your Profile
 
@@ -143,7 +143,7 @@ pnpm dev
 - Review application history
 - Track trends over time
 
-## API Routes
+## 🔌 API Routes
 
 All routes are exposed via tRPC at `/api/trpc`:
 
@@ -161,7 +161,7 @@ All routes are exposed via tRPC at `/api/trpc`:
 | `autoApply.run` | Run auto-apply process |
 | `analytics.getOverview` | Get analytics overview |
 
-## Project Structure
+## 📁 Project Structure
 
 ```
 ai-job-hunter/
@@ -182,7 +182,7 @@ ai-job-hunter/
 └── vitest.config.ts       # Vitest configuration
 ```
 
-## How It Works
+## 🧠 How It Works
 
 ### Job Relevance Scoring
 
@@ -190,10 +190,10 @@ Jobs are scored based on keyword matching:
 
 | Priority | Points | Examples |
 |----------|--------|----------|
-| High | 10 | data scientist, machine learning, energy systems |
-| Medium | 5 | data analyst, automation, research |
-| Low | 2 | engineer, scientist, researcher |
-| User skills | 8 | Based on your profile |
+| 🔴 High | 10 | data scientist, machine learning, energy systems |
+| 🟡 Medium | 5 | data analyst, automation, research |
+| 🟢 Low | 2 | engineer, scientist, researcher |
+| 🔵 User skills | 8 | Based on your profile |
 
 Scores are normalized to a 0 to 100 range.
 
@@ -210,7 +210,7 @@ The system learns from your manual applications:
 
 Jobs with 70% or higher pattern confidence are auto-applied.
 
-## Security
+## 🔒 Security
 
 - HttpOnly cookies for session management
 - CSRF protection with SameSite cookies
@@ -218,16 +218,25 @@ Jobs with 70% or higher pattern confidence are auto-applied.
 - JWT token verification
 - Role-based access control (user/admin)
 
-## Deployment
+## ☁️ Deployment
 
 The project includes configuration for both Railway and Vercel:
 
-- `railway.json` for Railway deployment
-- `vercel.json` for Vercel deployment
+| Platform | Config File |
+|----------|-------------|
+| Railway | `railway.json` |
+| Vercel | `vercel.json` |
 
-## Contributing
+## 🤝 Contributing
 
-Contributions are welcome. Please feel free to submit a Pull Request.
+Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md) for details on:
+
+- Code of conduct
+- Development setup
+- Pull request process
+- Style guidelines
+
+### Quick Start
 
 1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/amazing-feature`)
@@ -235,14 +244,19 @@ Contributions are welcome. Please feel free to submit a Pull Request.
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-## License
+## 📄 License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
-## Disclaimer
+## ⚠️ Disclaimer
 
 This tool aggregates job listings from various sources. Please ensure your use complies with the terms of service of each platform. The developers are not responsible for any misuse of this software.
 
-## Support
+## 💬 Support
 
-For issues and questions, please open an issue on GitHub.
+For issues and questions, please [open an issue](https://github.com/SauravBhowmick/ai-job-hunter/issues) on GitHub.
+
+## 🙏 Acknowledgments
+
+- Thanks to all contributors who help improve this project
+- Built for data scientists and professionals seeking opportunities in the energy sector
