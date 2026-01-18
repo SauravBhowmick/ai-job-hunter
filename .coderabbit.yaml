@@ -1,0 +1,72 @@
+# ==================================
+# CodeRabbit Configuration
+# ==================================
+# Documentation: https://docs.coderabbit.ai
+
+# Language for reviews
+language: "en-US"
+
+# Review settings
+reviews:
+  # Enable auto-review on new PRs
+  auto_review:
+    enabled: true
+    # Ignore drafts
+    drafts: false
+    # Base branches to review
+    base_branches:
+      - main
+      - develop
+
+  # Review profile: "chill" | "default" | "strict"
+  profile: "default"
+
+  # Request changes instead of just commenting
+  request_changes_workflow: false
+
+  # High level summary in PR comment
+  high_level_summary: true
+
+  # Add poem to review (fun touch)
+  poem: true
+
+  # Review status in summary
+  review_status: true
+
+  # Collapse walkthrough after this many files
+  collapse_walkthrough: 10
+
+  # Path-based instructions
+  path_instructions:
+    - path: "**/*.ts"
+      instructions: "Focus on TypeScript best practices, type safety, and potential runtime errors."
+    - path: "**/*.tsx"
+      instructions: "Check React component structure, hooks usage, and accessibility."
+    - path: "server/**/*"
+      instructions: "Review for security issues, SQL injection, and authentication vulnerabilities."
+    - path: "**/*.test.ts"
+      instructions: "Ensure tests are comprehensive and cover edge cases."
+
+# Chat settings (for interacting with CodeRabbit in comments)
+chat:
+  # Enable chat in PR comments
+  auto_reply: true
+
+# Ignore certain files from review
+path_filters:
+  # Files to ignore
+  excluded_paths:
+    - "pnpm-lock.yaml"
+    - "package-lock.json"
+    - "*.min.js"
+    - "*.min.css"
+    - "dist/**"
+    - "build/**"
+    - ".github/**"
+    - "*.md"
+
+# Early access features
+early_access: false
+
+# Enable free tier features
+free_tier: true
