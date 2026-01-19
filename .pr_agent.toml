@@ -1,6 +1,6 @@
 [github_app]
 pr_commands = [
-    "/describe --pr_description.final_update_message=false",
+    "/describe",
     "/review",
     "/improve",
 ]
