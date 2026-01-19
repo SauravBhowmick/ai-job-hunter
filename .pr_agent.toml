@@ -1,0 +1,17 @@
+[github_app]
+pr_commands = [
+    "/describe --pr_description.final_update_message=false",
+    "/review",
+    "/improve",
+]
+handle_push_trigger = false
+
+[pr_code_suggestions]
+num_code_suggestions = 5
+
+[pr_reviewer]
+inline_code_comments = true
+extra_instructions = "Focus on security issues, error handling, and performance."
+
+[pr_description]
+publish_labels = true
