@@ -10,11 +10,13 @@ import Applications from "./pages/Applications";
 import Analytics from "./pages/Analytics";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
+import Onboarding from "./pages/Onboarding";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Dashboard} />
+      <Route path="/onboarding" component={Onboarding} />
       <Route path="/job/:id" component={JobDetail} />
       <Route path="/applications" component={Applications} />
       <Route path="/analytics" component={Analytics} />

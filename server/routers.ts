@@ -7,6 +7,8 @@ import * as db from "./db";
 import { refreshJobs, scoreJobsForUser, getMatchingJobs, calculateRelevanceScore } from "./services/jobEngine";
 import { learnFromManualApplication, processAutoApply, getAutoApplyCandidates } from "./services/autoApply";
 import { sendJobNotificationEmail, checkAndNotify } from "./services/emailService";
+import { storagePut, storageGet } from "./storage";
+import { parseCV } from "./services/cvParser";
 
 export const appRouter = router({
   system: systemRouter,
@@ -33,6 +35,7 @@ export const appRouter = router({
         phone: z.string().optional(),
         location: z.string().optional(),
         cvSummary: z.string().optional(),
+        cvFileUrl: z.string().optional(),
         skills: z.array(z.string()).optional(),
         preferredTitles: z.array(z.string()).optional(),
         preferredLocations: z.array(z.string()).optional(),
@@ -41,6 +44,7 @@ export const appRouter = router({
         notificationEmail: z.string().email().optional(),
         autoApplyEnabled: z.boolean().optional(),
         relevanceThreshold: z.number().min(0).max(100).optional(),
+        onboardingCompleted: z.boolean().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         await db.upsertUserProfile({
@@ -49,6 +53,98 @@ export const appRouter = router({
         });
         return { success: true };
       }),
+    
+    // Upload CV file
+    uploadCV: protectedProcedure
+      .input(z.object({
+        fileData: z.string(), // Base64 encoded file data
+        fileName: z.string(),
+        mimeType: z.string(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const { fileData, fileName, mimeType } = input;
+        
+        // Validate file type
+        const allowedTypes = [
+          "application/pdf",
+          "application/msword",
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ];
+        if (!allowedTypes.includes(mimeType)) {
+          throw new Error("Invalid file type. Please upload a PDF or Word document.");
+        }
+        
+        // Decode base64 to buffer
+        const buffer = Buffer.from(fileData, "base64");
+        
+        // Check file size (max 10MB)
+        if (buffer.length > 10 * 1024 * 1024) {
+          throw new Error("File too large. Maximum size is 10MB.");
+        }
+        
+        // Generate storage path
+        const timestamp = Date.now();
+        const ext = fileName.split(".").pop() || "pdf";
+        const storagePath = `cvs/${ctx.user.id}/${timestamp}_cv.${ext}`;
+        
+        // Upload to storage
+        const { url } = await storagePut(storagePath, buffer, mimeType);
+        
+        // Update profile with CV URL
+        await db.upsertUserProfile({
+          userId: ctx.user.id,
+          cvFileUrl: url,
+        });
+        
+        return { success: true, url };
+      }),
+    
+    // Parse CV with AI
+    parseCV: protectedProcedure
+      .input(z.object({
+        cvText: z.string(), // Extracted text from CV
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const { cvText } = input;
+        
+        // Parse CV using AI
+        const parsedData = await parseCV(cvText);
+        
+        // Update profile with parsed data
+        await db.upsertUserProfile({
+          userId: ctx.user.id,
+          fullName: parsedData.fullName,
+          email: parsedData.email,
+          phone: parsedData.phone,
+          location: parsedData.location,
+          cvSummary: parsedData.summary,
+          skills: parsedData.skills,
+          preferredTitles: parsedData.preferredTitles,
+          experienceYears: parsedData.experienceYears,
+          education: parsedData.education,
+          cvParsedAt: new Date(),
+        });
+        
+        return { success: true, parsedData };
+      }),
+    
+    // Complete onboarding
+    completeOnboarding: protectedProcedure.mutation(async ({ ctx }) => {
+      await db.upsertUserProfile({
+        userId: ctx.user.id,
+        onboardingCompleted: true,
+      });
+      return { success: true };
+    }),
+    
+    // Get CV download URL
+    getCVUrl: protectedProcedure.query(async ({ ctx }) => {
+      const profile = await db.getUserProfile(ctx.user.id);
+      if (!profile?.cvFileUrl) {
+        return { url: null };
+      }
+      return { url: profile.cvFileUrl };
+    }),
   }),
 
   // Job Management
@@ -60,25 +156,46 @@ export const appRouter = router({
         maxAgeHours: z.number().optional(),
         limit: z.number().optional(),
         offset: z.number().optional(),
+        schengenOnly: z.boolean().optional(),
+        visaSponsorship: z.enum(["yes", "no", "unknown"]).optional(),
+        showVisaSponsorshipOnly: z.boolean().optional(),
       }).optional())
       .query(async ({ ctx, input }) => {
         const options = input || {};
         
         // Get jobs with scores for this user
-        const jobsWithScores = await db.getJobsWithScores(ctx.user.id, {
+        let jobsWithScores = await db.getJobsWithScores(ctx.user.id, {
           minScore: options.minScore,
           sources: options.sources,
-          limit: options.limit || 50,
+          limit: options.limit || 100, // Fetch more to allow for filtering
           offset: options.offset || 0,
         });
         
         // Filter by age if specified
         if (options.maxAgeHours) {
           const minDate = new Date(Date.now() - options.maxAgeHours * 60 * 60 * 1000);
-          return jobsWithScores.filter(j => j.job.postedAt && j.job.postedAt >= minDate);
+          jobsWithScores = jobsWithScores.filter(j => j.job.postedAt && j.job.postedAt >= minDate);
         }
         
-        return jobsWithScores;
+        // Filter by Schengen if specified
+        if (options.schengenOnly) {
+          jobsWithScores = jobsWithScores.filter(j => j.job.isSchengen === true);
+        }
+        
+        // Filter by VISA sponsorship if specified
+        if (options.visaSponsorship) {
+          jobsWithScores = jobsWithScores.filter(j => j.job.visaSponsorship === options.visaSponsorship);
+        }
+        
+        // Show only jobs with VISA sponsorship (for non-Schengen jobs)
+        if (options.showVisaSponsorshipOnly) {
+          jobsWithScores = jobsWithScores.filter(j => 
+            j.job.isSchengen === true || j.job.visaSponsorship === "yes"
+          );
+        }
+        
+        // Apply final limit
+        return jobsWithScores.slice(0, options.limit || 50);
       }),
     
     getById: protectedProcedure

@@ -9,13 +9,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { 
   Briefcase, MapPin, Building2, Clock, RefreshCw, Search, 
   Filter, Zap, Bell, BarChart3, User, Settings, LogOut,
-  ExternalLink, ChevronRight, Sparkles
+  ExternalLink, ChevronRight, Sparkles, Globe, Plane, Flag
 } from "lucide-react";
-import { useState, useMemo } from "react";
+import { Switch } from "@/components/ui/switch";
+import { useState, useMemo, useEffect } from "react";
 
 function formatTimeAgo(date: Date | null): string {
   if (!date) return "Unknown";
@@ -51,6 +52,10 @@ function JobCard({ job, score, matchedKeywords, hasApplied }: {
   matchedKeywords: string[] | null;
   hasApplied?: boolean;
 }) {
+  const isSchengen = job.isSchengen === true;
+  const hasVisaSupport = job.visaSponsorship === "yes";
+  const noVisaSupport = job.visaSponsorship === "no";
+  
   return (
     <Link href={`/job/${job.id}`}>
       <Card className="job-card cursor-pointer h-full">
@@ -80,10 +85,29 @@ function JobCard({ job, score, matchedKeywords, hasApplied }: {
             </span>
           </div>
           
-          <div className="flex items-center justify-between">
-            <Badge variant="outline" className={getSourceClass(job.source)}>
-              {job.source.replace('_', ' ')}
-            </Badge>
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className={getSourceClass(job.source)}>
+                {job.source.replace('_', ' ')}
+              </Badge>
+              {isSchengen && (
+                <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-600 border-blue-500/30">
+                  <Globe className="h-3 w-3 mr-1" />
+                  Schengen
+                </Badge>
+              )}
+              {!isSchengen && hasVisaSupport && (
+                <Badge variant="outline" className="text-xs bg-green-500/10 text-green-600 border-green-500/30">
+                  <Plane className="h-3 w-3 mr-1" />
+                  VISA Support
+                </Badge>
+              )}
+              {!isSchengen && noVisaSupport && (
+                <Badge variant="outline" className="text-xs bg-red-500/10 text-red-600 border-red-500/30">
+                  No VISA
+                </Badge>
+              )}
+            </div>
             {hasApplied && (
               <Badge variant="secondary" className="text-xs">Applied</Badge>
             )}
@@ -200,19 +224,38 @@ function RefreshStatus() {
 
 export default function Dashboard() {
   const { user, loading: authLoading, logout, isAuthenticated } = useAuth();
+  const [, navigate] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSource, setSelectedSource] = useState<string>("all");
   const [minScore, setMinScore] = useState(0);
   const [maxAge, setMaxAge] = useState(48);
+  const [schengenOnly, setSchengenOnly] = useState(false);
+  const [showVisaSupport, setShowVisaSupport] = useState(false);
   
   const utils = trpc.useUtils();
+  
+  // Check if user has completed onboarding
+  const { data: profile, isLoading: profileLoading } = trpc.profile.get.useQuery(undefined, {
+    enabled: isAuthenticated,
+  });
+
+  // Redirect to onboarding if not completed
+  useEffect(() => {
+    if (isAuthenticated && !profileLoading && profile !== undefined) {
+      if (!profile?.onboardingCompleted) {
+        navigate("/onboarding");
+      }
+    }
+  }, [isAuthenticated, profileLoading, profile, navigate]);
   
   const { data: jobs, isLoading: jobsLoading, refetch: refetchJobs } = trpc.jobs.list.useQuery(
     { 
       sources: selectedSource !== "all" ? [selectedSource] : undefined,
       minScore: minScore > 0 ? minScore : undefined,
       maxAgeHours: maxAge,
-      limit: 50 
+      limit: 50,
+      schengenOnly: schengenOnly || undefined,
+      showVisaSponsorshipOnly: showVisaSupport || undefined,
     },
     { enabled: isAuthenticated }
   );
@@ -255,7 +298,7 @@ export default function Dashboard() {
     );
   }, [jobs, searchQuery]);
   
-  if (authLoading) {
+  if (authLoading || (isAuthenticated && profileLoading)) {
     return (
       <div className="flex h-screen">
         <div className="w-64 border-r border-border bg-card/50 p-4">
@@ -387,6 +430,8 @@ export default function Dashboard() {
                     <SelectItem value="stepstone">StepStone</SelectItem>
                     <SelectItem value="energy_jobline">Energy Jobline</SelectItem>
                     <SelectItem value="datacareer">DataCareer</SelectItem>
+                    <SelectItem value="adzuna">Adzuna</SelectItem>
+                    <SelectItem value="jsearch">JSearch</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -409,6 +454,38 @@ export default function Dashboard() {
                   max={168}
                   step={6}
                 />
+              </div>
+            </div>
+            
+            {/* Location & VISA Filters */}
+            <div className="flex flex-wrap gap-6 mt-4 pt-4 border-t">
+              <div className="flex items-center gap-3">
+                <Switch 
+                  id="schengen-only"
+                  checked={schengenOnly}
+                  onCheckedChange={setSchengenOnly}
+                />
+                <label htmlFor="schengen-only" className="text-sm font-medium flex items-center gap-2 cursor-pointer">
+                  <Globe className="h-4 w-4 text-blue-500" />
+                  Schengen Only
+                </label>
+              </div>
+              
+              <div className="flex items-center gap-3">
+                <Switch 
+                  id="visa-support"
+                  checked={showVisaSupport}
+                  onCheckedChange={setShowVisaSupport}
+                />
+                <label htmlFor="visa-support" className="text-sm font-medium flex items-center gap-2 cursor-pointer">
+                  <Plane className="h-4 w-4 text-green-500" />
+                  With VISA Support
+                </label>
+              </div>
+              
+              <div className="text-xs text-muted-foreground flex items-center gap-2 ml-auto">
+                <Flag className="h-3.5 w-3.5" />
+                <span>Jobs outside Schengen will show VISA sponsorship status</span>
               </div>
             </div>
           </CardContent>

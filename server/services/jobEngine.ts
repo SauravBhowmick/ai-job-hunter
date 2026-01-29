@@ -178,36 +178,17 @@ export function calculateRelevanceScore(job: { title?: string | null; descriptio
 // Refresh jobs from all sources
 export async function refreshJobs(userId?: number): Promise<{ jobsFound: number; newJobs: number }> {
   try {
-    // In production, this would make real API calls to job boards
-    // For now, we simulate with generated data
-    const simulatedJobs = generateSimulatedJobs();
+    // Import the job scraper dynamically to avoid circular dependencies
+    const { scrapeJobs, getSearchKeywords } = await import("./jobScraper");
     
-    let newJobsCount = 0;
+    // Get user profile for search keywords
+    const profile = userId ? await db.getUserProfile(userId) : undefined;
+    const keywords = getSearchKeywords(profile);
     
-    for (const job of simulatedJobs) {
-      // Check if job already exists
-      const existing = await db.getJobByExternalId(job.externalId!, job.source);
-      if (!existing) {
-        await db.insertJob(job);
-        newJobsCount++;
-      }
-    }
+    // Scrape jobs from real APIs or use simulated data
+    const result = await scrapeJobs(keywords, userId);
     
-    // Log the refresh
-    const nextRefresh = new Date();
-    nextRefresh.setHours(nextRefresh.getHours() + 5); // 5-hour refresh interval
-    
-    await db.logRefresh({
-      userId: userId,
-      source: "all",
-      jobsFound: simulatedJobs.length,
-      newJobs: newJobsCount,
-      refreshedAt: new Date(),
-      nextRefreshAt: nextRefresh,
-      status: "success"
-    });
-    
-    return { jobsFound: simulatedJobs.length, newJobs: newJobsCount };
+    return result;
   } catch (error) {
     console.error("Error refreshing jobs:", error);
     
@@ -226,37 +207,27 @@ export async function refreshJobs(userId?: number): Promise<{ jobsFound: number;
 
 // Score all jobs for a user
 export async function scoreJobsForUser(userId: number, userSkills: string[]) {
-  const jobs = await getJobs({ limit: 500 });
-  const scores = [];
+  // Get all active jobs using the db module
+  const jobs = await db.getJobs({ limit: 500 });
   
-  // Calculate all scores in memory
+  // Calculate scores and upsert them one by one
+  let scoredCount = 0;
+  
   for (const job of jobs) {
     const { score, matchedKeywords } = calculateRelevanceScore(job, userSkills);
-    scores.push({
+    
+    await db.upsertJobScore({
       jobId: job.id,
       userId,
       relevanceScore: score,
-      matchedKeywords
+      matchedKeywords,
+      calculatedAt: new Date(),
     });
-  }
-  
-  // Single batch operation instead of 500+ individual queries
-  if (scores.length > 0) {
-    const db = await getDb();
-    if (!db) return 0;
     
-    await db.insert(jobScores)
-      .values(scores)
-      .onDuplicateKeyUpdate({
-        set: {
-          relevanceScore: sql`VALUES(relevanceScore)`,
-          matchedKeywords: sql`VALUES(matchedKeywords)`,
-          calculatedAt: new Date()
-        }
-      });
+    scoredCount++;
   }
   
-  return scores.length;
+  return scoredCount;
 }
 
 // Get jobs matching user criteria
