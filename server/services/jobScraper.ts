@@ -6,6 +6,7 @@ import {
   isSchengenCountry, 
   detectVisaSponsorship,
 } from "../../shared/schengen";
+import { randomInt } from "crypto";
 
 // Job scraper configuration
 interface JobScraperConfig {
@@ -428,13 +429,28 @@ async function generateSimulatedSchengenJobs(
   const totalJobs = 40;
   const schengenCount = Math.floor(totalJobs * 0.8);
   
+  // Helper functions for secure randomness
+  const secureRandomInt = (max: number): number => {
+    if (max <= 0) return 0;
+    return randomInt(0, max);
+  };
+
+  const secureRandomBool = (probability: number): boolean => {
+    if (probability <= 0) return false;
+    if (probability >= 1) return true;
+    const scale = 1_000_000;
+    const threshold = Math.floor(probability * scale);
+    const value = randomInt(0, scale);
+    return value < threshold;
+  };
+
   for (let i = 0; i < totalJobs; i++) {
     const isSchengen = i < schengenCount;
     const locations = isSchengen ? schengenLocations : nonSchengenLocations;
-    const loc = locations[Math.floor(Math.random() * locations.length)];
-    const company = companies[Math.floor(Math.random() * companies.length)];
-    const template = jobTemplates[Math.floor(Math.random() * jobTemplates.length)];
-    const hoursOffset = hoursAgo[Math.floor(Math.random() * hoursAgo.length)];
+    const loc = locations[secureRandomInt(locations.length)];
+    const company = companies[secureRandomInt(companies.length)];
+    const template = jobTemplates[secureRandomInt(jobTemplates.length)];
+    const hoursOffset = hoursAgo[secureRandomInt(hoursAgo.length)];
     const postedAt = new Date(now.getTime() - hoursOffset * 60 * 60 * 1000);
     
     // Determine visa sponsorship
@@ -444,7 +460,7 @@ async function generateSimulatedSchengenJobs(
     } else if (company.visaSupport) {
       visaSponsorship = "yes";
     } else {
-      visaSponsorship = Math.random() > 0.5 ? "unknown" : "no";
+      visaSponsorship = secureRandomBool(0.5) ? "unknown" : "no";
     }
     
     jobs.push({
@@ -458,8 +474,8 @@ async function generateSimulatedSchengenJobs(
       visaSponsorship: visaSponsorship,
       description: template.description,
       requirements: "Bachelor's or Master's degree in relevant field. 3+ years of experience.",
-      salary: Math.random() > 0.4 
-        ? `€${60 + Math.floor(Math.random() * 60)}k - €${90 + Math.floor(Math.random() * 40)}k`
+      salary: secureRandomBool(0.4) 
+        ? `€${60 + secureRandomInt(60)}k - €${90 + secureRandomInt(40)}k`
         : undefined,
       jobType: "Full-time",
       url: `https://example.com/jobs/${i}`,
