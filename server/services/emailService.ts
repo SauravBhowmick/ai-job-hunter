@@ -146,7 +146,12 @@ export async function checkAndNotify(userId: number): Promise<{ notified: boolea
   return { notified: success, jobCount: recentJobs.length };
 }
 
-// Schedule notification check (called by scheduled task)
+/**
+ * Perform a scheduled check for user notifications.
+ *
+ * Placeholder implementation that currently logs start and completion.
+ * In a full implementation this would iterate through users and trigger notification processing.
+ */
 export async function runScheduledNotificationCheck(): Promise<void> {
   console.log("Running scheduled notification check...");
   
@@ -165,7 +170,13 @@ interface AutoApplyResult {
   skippedReasons: Record<string, number>;
 }
 
-// Send auto-apply notification email
+/**
+ * Sends a summary email about an auto-apply run to the user's notification email.
+ *
+ * @param userId - ID of the user to notify
+ * @param result - Summary of the auto-apply run containing counts, applied job details, and skip reasons
+ * @returns `true` if the notification email was successfully sent, `false` otherwise (also `false` when `result.applied` is 0)
+ */
 export async function sendAutoApplyNotification(
   userId: number,
   result: AutoApplyResult

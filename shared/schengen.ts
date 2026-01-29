@@ -88,7 +88,12 @@ export const COUNTRY_CODES: Record<string, string> = Object.fromEntries(
 );
 
 /**
- * Check if a country code is in the Schengen area
+ * Determines whether the given ISO 3166-1 alpha-2 country code belongs to the Schengen Area.
+ *
+ * Null or undefined values are treated as non-Schengen.
+ *
+ * @param countryCode - The country code to check; case is ignored and null/undefined are allowed.
+ * @returns `true` if the provided country code is a Schengen member, `false` otherwise.
  */
 export function isSchengenCountry(countryCode: string | null | undefined): boolean {
   if (!countryCode) return false;
@@ -96,8 +101,14 @@ export function isSchengenCountry(countryCode: string | null | undefined): boole
 }
 
 /**
- * Extract country code from a location string
- * Examples: "Berlin, Germany" -> "DE", "Paris, France" -> "FR"
+ * Determine a two-letter ISO country code from a freeform location string.
+ *
+ * Matches full country names case-insensitively (e.g., "Paris, France") or two-letter
+ * ISO codes appearing as separate tokens (e.g., "Berlin, DE"). If the location text
+ * mentions "remote" without a specific country, no code is returned.
+ *
+ * @param location - Freeform location text (may be null or undefined)
+ * @returns The matching two-letter country code (e.g., "DE", "FR"), or `null` if none found
  */
 export function extractCountryCode(location: string | null | undefined): string | null {
   if (!location) return null;
@@ -165,7 +176,11 @@ export const VISA_NEGATIVE_KEYWORDS = [
 ];
 
 /**
- * Detect VISA sponsorship from job description
+ * Determine whether a job listing indicates visa sponsorship.
+ *
+ * @param description - The job description text to analyze
+ * @param requirements - The job requirements or qualifications to analyze
+ * @returns `"yes"` if the text contains sponsorship-positive keywords, `"no"` if it contains sponsorship-negative keywords (negative indicators take precedence), `"unknown"` if no decisive keywords are found
  */
 export function detectVisaSponsorship(
   description: string | null | undefined,

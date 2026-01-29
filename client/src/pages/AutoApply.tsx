@@ -18,6 +18,14 @@ import {
 } from "lucide-react";
 import { useState, useEffect } from "react";
 
+/**
+ * Renders the fixed vertical sidebar navigation for the app.
+ *
+ * The sidebar displays the app title and subtitle and provides navigation links to:
+ * Job Dashboard, Applications, Auto-Apply (visually highlighted), Analytics, and Profile.
+ *
+ * @returns The sidebar JSX element containing the title, subtitle, and navigation links.
+ */
 function Sidebar() {
   return (
     <aside className="w-64 border-r border-border bg-card/50 p-4 flex flex-col h-screen sticky top-0">
@@ -65,6 +73,18 @@ function Sidebar() {
   );
 }
 
+/**
+ * Render a card showing an auto-apply candidate with status, confidence, and whitelist/blacklist actions.
+ *
+ * @param candidate - Candidate data used to populate the card. Expected properties:
+ *   - job: { title: string, company?: string, location?: string }
+ *   - wouldAutoApply: boolean
+ *   - autoApplyConfidence: number
+ *   - isWhitelisted?: boolean
+ * @param onWhitelist - Callback invoked with the company name when the Whitelist button is clicked.
+ * @param onBlacklist - Callback invoked with the company name when the Blacklist button is clicked.
+ * @returns A JSX element displaying the candidate's job title, company, location, confidence badge, status badges, and action buttons.
+ */
 function CandidateCard({ candidate, onWhitelist, onBlacklist }: { 
   candidate: any; 
   onWhitelist: (company: string) => void;
@@ -138,6 +158,15 @@ function CandidateCard({ candidate, onWhitelist, onBlacklist }: {
   );
 }
 
+/**
+ * Renders a compact list of company badges with remove buttons or an empty message when there are no companies.
+ *
+ * @param companies - Array of company names to display as badges.
+ * @param onRemove - Callback invoked with the company name when its remove button is clicked.
+ * @param emptyMessage - Message shown when `companies` is empty.
+ * @param variant - Visual variant; `"whitelist"` applies positive styling, `"blacklist"` applies destructive styling.
+ * @returns The badge list JSX or a paragraph containing the empty message.
+ */
 function CompanyList({ 
   companies, 
   onRemove, 
@@ -171,6 +200,15 @@ function CompanyList({
   );
 }
 
+/**
+ * Render the Auto-Apply dashboard for managing and running automated job applications.
+ *
+ * Displays status stats and provides three tabs: Preview (candidate cards with whitelist/blacklist actions),
+ * Settings (toggles and sliders for auto-apply behavior plus company whitelist/blacklist management),
+ * and History (recent run logs). Requires the user to be authenticated; when not authenticated it prompts for sign-in.
+ *
+ * @returns The React element for the Auto-Apply page UI
+ */
 export default function AutoApply() {
   const { isAuthenticated } = useAuth();
   const utils = trpc.useUtils();

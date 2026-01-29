@@ -2,7 +2,17 @@ import * as db from "../db";
 import { calculateRelevanceScore } from "./jobEngine";
 import { sendAutoApplyNotification } from "./emailService";
 
-// Learn patterns from manual applications
+/**
+ * Learn application patterns from a manually applied job and update or create the user's learned patterns.
+ *
+ * If the job cannot be found, the function returns without side effects. If an existing pattern shares at least
+ * two keywords with the applied job, that pattern's keywords, companies, and locations are merged (deduplicated)
+ * and its application count is incremented; otherwise a new learned pattern is created with a default
+ * minRelevanceScore of 60, applicationCount 1, and isActive set to true.
+ *
+ * @param userId - The id of the user whose application patterns will be updated
+ * @param jobId - The id of the manually applied job used to derive or update a pattern
+ */
 export async function learnFromManualApplication(userId: number, jobId: number) {
   const job = await db.getJobById(jobId);
   if (!job) return;
@@ -49,7 +59,13 @@ export async function learnFromManualApplication(userId: number, jobId: number) 
   }
 }
 
-// Check if company is in whitelist
+/**
+ * Determine whether a company appears in a whitelist of company names.
+ *
+ * @param company - The company name to check, or `null` if unknown
+ * @param whitelist - An array of whitelisted company names, or `null`/empty if none
+ * @returns `true` if `company` matches any entry in `whitelist` (case-insensitive, allowing partial containment both ways), `false` otherwise.
+ */
 function isCompanyWhitelisted(company: string | null, whitelist: string[] | null): boolean {
   if (!whitelist || whitelist.length === 0) return false;
   if (!company) return false;
@@ -57,7 +73,15 @@ function isCompanyWhitelisted(company: string | null, whitelist: string[] | null
   return whitelist.some(w => companyLower.includes(w.toLowerCase()) || w.toLowerCase().includes(companyLower));
 }
 
-// Check if company is in blacklist
+/**
+ * Determines whether a company is present in the blacklist.
+ *
+ * Performs case-insensitive matching and returns `true` if the company string contains any blacklist entry or any blacklist entry contains the company string.
+ *
+ * @param company - The company name to check; if `null`, it is treated as not blacklisted.
+ * @param blacklist - Array of blacklist entries; if `null` or empty, it is treated as no blacklist.
+ * @returns `true` if a match is found, `false` otherwise.
+ */
 function isCompanyBlacklisted(company: string | null, blacklist: string[] | null): boolean {
   if (!blacklist || blacklist.length === 0) return false;
   if (!company) return false;
@@ -65,7 +89,19 @@ function isCompanyBlacklisted(company: string | null, blacklist: string[] | null
   return blacklist.some(b => companyLower.includes(b.toLowerCase()) || b.toLowerCase().includes(companyLower));
 }
 
-// Check if a job matches user's application patterns
+/**
+ * Determines whether a job matches any of the user's learned application patterns, taking optional company whitelist/blacklist into account.
+ *
+ * @param job - Job metadata to evaluate (title, description, keywords, company, location)
+ * @param patterns - Learned application patterns to compare against
+ * @param companyWhitelist - Optional list of companies that should boost match confidence
+ * @param companyBlacklist - Optional list of companies that cause immediate rejection
+ * @returns An object with:
+ *  - `matches`: `true` if a pattern meets the matching threshold, `false` otherwise.
+ *  - `matchedPattern`: the pattern that matched when `matches` is `true`.
+ *  - `confidence`: a numeric confidence score for the match (0–100).
+ *  - `reason`: optional human-readable explanation when a match was boosted or rejected (e.g., whitelist/blacklist).
+ */
 export function matchesApplicationPattern(
   job: { title?: string | null; description?: string | null; keywords?: string[] | null; company?: string | null; location?: string | null },
   patterns: { keywords?: string[] | null; companies?: string[] | null; locations?: string[] | null; minRelevanceScore?: number | null }[],
@@ -140,7 +176,14 @@ export interface AutoApplyResult {
   skippedReasons: Record<string, number>;
 }
 
-// Auto-apply to matching jobs
+/**
+ * Processes the user's auto-apply workflow: scans candidate jobs, matches them against learned patterns, and auto-applies up to the user's daily limit.
+ *
+ * Performs database writes (creates application records, logs the run, and updates the profile's last-run timestamp) and may send a notification email when applications were submitted.
+ *
+ * @param userId - ID of the user to run auto-apply for
+ * @returns An AutoApplyResult summarizing how many jobs were scanned, matched, applied, skipped, the list of applied jobs, and a breakdown of skip reasons
+ */
 export async function processAutoApply(userId: number): Promise<AutoApplyResult> {
   const result: AutoApplyResult = {
     applied: 0,
@@ -286,7 +329,23 @@ export async function processAutoApply(userId: number): Promise<AutoApplyResult>
   return result;
 }
 
-// Get auto-apply candidates (jobs that would be auto-applied) - for preview
+/**
+ * Retrieve potential auto-apply job candidates for a user based on their profile and learned patterns.
+ *
+ * Only jobs the user has not already applied to are considered; candidates must match at least one pattern
+ * with confidence >= 50 to be included. Each candidate includes metadata used by the UI to preview and
+ * decide automatic application.
+ *
+ * @returns An array of candidate objects with the following properties:
+ * - `job`: The job record.
+ * - `score`: The job's relevance score for the user.
+ * - `matchedKeywords`: Keywords from the job that matched learned patterns.
+ * - `autoApplyConfidence`: Confidence percentage that the job matches a learned pattern.
+ * - `wouldAutoApply`: `true` if `autoApplyConfidence` meets the user's configured auto-apply threshold, `false` otherwise.
+ * - `isWhitelisted`: `true` if the job's company is present in the user's whitelist.
+ * - `isBlacklisted`: `true` if the job's company is present in the user's blacklist.
+ * - `reason`: Optional short reason explaining whitelist/blacklist boosting or rejection.
+ */
 export async function getAutoApplyCandidates(userId: number): Promise<any[]> {
   const profile = await db.getUserProfile(userId);
   if (!profile) return [];
@@ -339,12 +398,33 @@ export async function getAutoApplyCandidates(userId: number): Promise<any[]> {
   return candidates;
 }
 
-// Get auto-apply history/logs
+/**
+ * Retrieve a user's auto-apply logs with an optional limit.
+ *
+ * @param userId - ID of the user whose logs to retrieve
+ * @param limit - Maximum number of log entries to return (default 20)
+ * @returns An array of auto-apply log entries for the user
+ */
 export async function getAutoApplyHistory(userId: number, limit: number = 20) {
   return db.getAutoApplyLogs(userId, limit);
 }
 
-// Get auto-apply stats
+/**
+ * Compute auto-apply statistics and quota information for the given user.
+ *
+ * @returns An object with the user's auto-apply settings and aggregated metrics:
+ * - `isEnabled` — whether auto-apply is enabled for the user
+ * - `confidenceThreshold` — configured confidence threshold for auto-applying
+ * - `maxPerDay` — maximum auto-applies allowed per day
+ * - `appliedToday` — number of auto-applies performed today
+ * - `remainingToday` — remaining auto-applies allowed today
+ * - `totalAppliedLast30Days` — total jobs auto-applied in the last 30 days
+ * - `patternsCount` — number of learned application patterns for the user
+ * - `successRate` — percentage of applied jobs out of scanned jobs (0–100)
+ * - `lastRunAt` — timestamp of the last auto-apply run (or undefined)
+ * - `whitelistedCompanies` — count of companies in the user's whitelist
+ * - `blacklistedCompanies` — count of companies in the user's blacklist
+ */
 export async function getAutoApplyStats(userId: number) {
   const profile = await db.getUserProfile(userId);
   const logs = await db.getAutoApplyLogs(userId, 30);

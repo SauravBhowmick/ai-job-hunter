@@ -175,7 +175,13 @@ export function calculateRelevanceScore(job: { title?: string | null; descriptio
   return { score: normalizedScore, matchedKeywords: Array.from(new Set(matchedKeywords)) };
 }
 
-// Refresh jobs from all sources
+/**
+ * Refreshes job listings from all configured sources, optionally using a user's profile to derive search keywords.
+ *
+ * @param userId - Optional user ID used to derive personalized search keywords; when omitted, global/default keywords are used.
+ * @returns An object containing `jobsFound` (total jobs discovered) and `newJobs` (jobs newly added to the system).
+ * @throws Propagates the underlying error if scraping or database logging fails during the refresh process.
+ */
 export async function refreshJobs(userId?: number): Promise<{ jobsFound: number; newJobs: number }> {
   try {
     // Import the job scraper dynamically to avoid circular dependencies
@@ -205,7 +211,13 @@ export async function refreshJobs(userId?: number): Promise<{ jobsFound: number;
   }
 }
 
-// Score all jobs for a user
+/**
+ * Calculate relevance scores for active jobs for a given user and persist those scores.
+ *
+ * @param userId - The ID of the user whose relevance scores will be associated with each job
+ * @param userSkills - The user's skill keywords used to adjust relevance scoring
+ * @returns The number of jobs that were processed and scored
+ */
 export async function scoreJobsForUser(userId: number, userSkills: string[]) {
   // Get all active jobs using the db module
   const jobs = await db.getJobs({ limit: 500 });

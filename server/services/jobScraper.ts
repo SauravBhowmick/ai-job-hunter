@@ -67,8 +67,15 @@ interface JSearchResponse {
 }
 
 /**
- * Fetch jobs from Adzuna API
- * Adzuna provides job listings from multiple countries
+ * Retrieve job listings from the Adzuna API for the given keywords and countries.
+ *
+ * Queries Adzuna per country and returns results mapped to the module's ExternalJob shape.
+ *
+ * @param appId - Adzuna application ID
+ * @param apiKey - Adzuna API key
+ * @param keywords - Search terms to send to the API
+ * @param countries - Country codes to query; defaults to ["de", "at", "ch", "nl", "fr"]
+ * @returns An array of ExternalJob objects built from Adzuna search results; results for countries that fail to respond are omitted
  */
 async function fetchFromAdzuna(
   appId: string,
@@ -122,8 +129,12 @@ async function fetchFromAdzuna(
 }
 
 /**
- * Fetch jobs from JSearch API (RapidAPI)
- * JSearch aggregates jobs from multiple sources
+ * Retrieve job postings from the JSearch (RapidAPI) endpoint for the specified keywords and locations.
+ *
+ * @param apiKey - RapidAPI key used to authenticate JSearch requests
+ * @param keywords - Array of search keywords combined into the query
+ * @param locations - List of location names to query (defaults to ["Germany", "Netherlands", "France", "Austria", "Switzerland"])
+ * @returns An array of `ExternalJob` objects mapped from JSearch results; `postedAt` is parsed from the job's UTC timestamp
  */
 async function fetchFromJSearch(
   apiKey: string,
@@ -186,7 +197,10 @@ async function fetchFromJSearch(
 }
 
 /**
- * Transform external job to database job format
+ * Convert an ExternalJob into the database InsertJob shape.
+ *
+ * @param job - The external job record to convert
+ * @returns An InsertJob populated from `job`, with derived `country`, `isSchengen`, detected `visaSponsorship`, extracted `keywords`, default `jobType` set to `"Full-time"`, and `isActive` set to `true`
  */
 function transformToDbJob(job: ExternalJob): InsertJob {
   const country = extractCountryCode(job.location);
@@ -216,7 +230,14 @@ function transformToDbJob(job: ExternalJob): InsertJob {
 }
 
 /**
- * Extract relevant keywords from job title and description
+ * Extracts up to 15 relevant tech and energy keywords from a job title and description.
+ *
+ * Scans the combined text for a predefined set of domain keywords and returns the unique matches
+ * in the order they are found.
+ *
+ * @param title - Job title text
+ * @param description - Job description text
+ * @returns An array of matched keywords (unique, discovery order), limited to 15 items
  */
 function extractKeywords(title: string, description: string): string[] {
   const text = `${title} ${description}`.toLowerCase();
@@ -243,7 +264,13 @@ function extractKeywords(title: string, description: string): string[] {
 }
 
 /**
- * Main function to scrape jobs from all configured sources
+ * Orchestrates job retrieval from configured external APIs, inserts new jobs into the database, and logs a refresh event.
+ *
+ * If no external APIs are configured or available, a simulated set of Schengen-focused jobs is generated and inserted instead.
+ *
+ * @param keywords - Search keywords used to query external job sources
+ * @param userId - Optional user ID to associate with the refresh log and any generated simulated jobs
+ * @returns An object with `jobsFound` as the total number of external (or simulated) jobs processed and `newJobs` as the number of jobs newly inserted into the database
  */
 export async function scrapeJobs(
   keywords: string[],
@@ -314,8 +341,14 @@ export async function scrapeJobs(
 }
 
 /**
- * Generate simulated job data for Schengen countries
- * Used when no real API is configured
+ * Create and insert a set of simulated job postings (primarily Schengen) and log the refresh.
+ *
+ * Generates 40 simulated jobs (approximately 80% Schengen, 20% non‑Schengen) with randomized
+ * locations, companies, templates, posting times, visa sponsorship flags, salaries, and keywords,
+ * inserts any that do not already exist in the database, and records a refresh entry.
+ *
+ * @param userId - Optional ID of the user associated with the refresh log entry
+ * @returns An object with `jobsFound` equal to the total simulated jobs generated and `newJobs` equal to the number of jobs newly inserted into the database
  */
 async function generateSimulatedSchengenJobs(
   userId?: number
@@ -513,7 +546,13 @@ async function generateSimulatedSchengenJobs(
 }
 
 /**
- * Get default search keywords based on user profile
+ * Build a prioritized list of search keywords from a user's profile and sensible defaults.
+ *
+ * Merges the default keywords with up to the first 5 skills and the first 3 preferred titles
+ * (each lowercased), preserving uniqueness and returning at most 10 keywords.
+ *
+ * @param profile - Optional object with `skills` and `preferredTitles` arrays to augment defaults
+ * @returns An array of unique, lowercased keywords (defaults plus profile-derived terms), limited to 10 items
  */
 export function getSearchKeywords(profile?: {
   skills?: string[] | null;

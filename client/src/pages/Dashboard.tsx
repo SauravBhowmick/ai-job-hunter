@@ -18,6 +18,12 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { useState, useMemo, useEffect } from "react";
 
+/**
+ * Format a date as a concise relative time string.
+ *
+ * @param date - The date to format; may be `null` to indicate an unknown time.
+ * @returns `"Unknown"` if `date` is `null`, `"<Xm ago>"` if less than 1 hour, `"<Xh ago>"` if less than 24 hours, or `"<Xd ago>"` otherwise.
+ */
 function formatTimeAgo(date: Date | null): string {
   if (!date) return "Unknown";
   const now = new Date();
@@ -46,6 +52,19 @@ function getSourceClass(source: string): string {
   return `source-${source}`;
 }
 
+/**
+ * Render a clickable job card summarizing job details, score, badges, and matched keywords.
+ *
+ * The card links to the job details page and displays title, company, location, relative posted time,
+ * a score badge, source badge, Schengen/VISA status badges, an "Applied" badge when applicable,
+ * and up to three matched keyword chips (with a +N chip for additional keywords).
+ *
+ * @param job - Job object; expected fields: `id`, `title`, `company`, `location`, `postedAt`, `source`, `isSchengen`, `visaSponsorship`
+ * @param score - Relevance score (0-100) or `null` when unavailable
+ * @param matchedKeywords - Array of matched keyword strings or `null`
+ * @param hasApplied - When true, shows an "Applied" badge
+ * @returns A JSX element representing the job card
+ */
 function JobCard({ job, score, matchedKeywords, hasApplied }: { 
   job: any; 
   score: number | null; 
@@ -222,6 +241,17 @@ function RefreshStatus() {
   );
 }
 
+/**
+ * Render the main job dashboard UI with filters, stats, actions, and the job list.
+ *
+ * This component manages authentication-aware data loading (profile, jobs, and application stats),
+ * redirects to onboarding when the user's profile is incomplete, and provides interactive
+ * controls for searching, filtering (source, minimum score, maximum age, Schengen-only, and
+ * VISA-support), refreshing the job index, and sending notification alerts. It also renders
+ * appropriate loading skeletons and an empty state when no jobs match the filters.
+ *
+ * @returns The dashboard page React element containing the sidebar, header, filter controls, stats cards, and job grid.
+ */
 export default function Dashboard() {
   const { user, loading: authLoading, logout, isAuthenticated } = useAuth();
   const [, navigate] = useLocation();

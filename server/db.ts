@@ -394,6 +394,13 @@ export async function getApplicationStats(userId: number) {
   };
 }
 
+/**
+ * Retrieves applications for a user within the last N days.
+ *
+ * @param userId - The user's id to filter applications
+ * @param days - Number of days in the past to include (default 30)
+ * @returns The list of applications for the user applied on or after the calculated start date, ordered newest first
+ */
 export async function getRecentApplicationTrend(userId: number, days: number = 30) {
   const db = await getDb();
   if (!db) return [];
@@ -406,13 +413,24 @@ export async function getRecentApplicationTrend(userId: number, days: number = 3
     .orderBy(desc(applications.appliedAt));
 }
 
-// ============ AUTO-APPLY LOG FUNCTIONS ============
+/**
+ * Persist an auto-apply run record to the database.
+ *
+ * @param log - The auto-apply run entry to insert (matches `InsertAutoApplyLog`)
+ */
 export async function logAutoApplyRun(log: InsertAutoApplyLog) {
   const db = await getDb();
   if (!db) return;
   await db.insert(autoApplyLogs).values(log);
 }
 
+/**
+ * Fetches recent auto-apply run logs for a user, ordered by most recent run.
+ *
+ * @param userId - ID of the user whose logs will be retrieved
+ * @param limit - Maximum number of logs to return (defaults to 20)
+ * @returns An array of auto-apply log records ordered by `runAt` descending; returns an empty array if the database is unavailable.
+ */
 export async function getAutoApplyLogs(userId: number, limit: number = 20) {
   const db = await getDb();
   if (!db) return [];
@@ -422,6 +440,12 @@ export async function getAutoApplyLogs(userId: number, limit: number = 20) {
     .limit(limit);
 }
 
+/**
+ * Calculates the total number of jobs auto-applied for a user since the start of the current day (local time).
+ *
+ * @param userId - The id of the user whose auto-apply logs will be aggregated
+ * @returns The sum of `jobsApplied` from today's auto-apply logs for the user, or `0` if the database is unavailable or no logs exist
+ */
 export async function getTodayAutoApplyCount(userId: number): Promise<number> {
   const db = await getDb();
   if (!db) return 0;
@@ -435,7 +459,11 @@ export async function getTodayAutoApplyCount(userId: number): Promise<number> {
   return logs.reduce((sum, log) => sum + (log.jobsApplied || 0), 0);
 }
 
-// ============ SCHEDULED TASK FUNCTIONS ============
+/**
+ * Inserts a new scheduled task or updates an existing one matched by `userId` and `taskType`.
+ *
+ * @param task - The scheduled task record to insert or use to update the existing task (matched by `userId` and `taskType`)
+ */
 export async function upsertScheduledTask(task: InsertScheduledTask) {
   const db = await getDb();
   if (!db) return;
@@ -452,6 +480,12 @@ export async function upsertScheduledTask(task: InsertScheduledTask) {
   }
 }
 
+/**
+ * Fetches scheduled tasks for a user.
+ *
+ * @param userId - ID of the user whose scheduled tasks to retrieve
+ * @returns An array of scheduled tasks for the specified user; empty array if none are found or the database is unavailable
+ */
 export async function getScheduledTasks(userId: number) {
   const db = await getDb();
   if (!db) return [];
@@ -459,6 +493,13 @@ export async function getScheduledTasks(userId: number) {
     .where(eq(scheduledTasks.userId, userId));
 }
 
+/**
+ * Fetches a single scheduled task for a user by task type.
+ *
+ * @param userId - The user's numeric id
+ * @param taskType - The scheduled task type: `"auto_apply"`, `"job_refresh"`, or `"notification"`
+ * @returns The matching scheduled task, or `undefined` if no task exists or the database is unavailable
+ */
 export async function getScheduledTask(userId: number, taskType: "auto_apply" | "job_refresh" | "notification") {
   const db = await getDb();
   if (!db) return undefined;
@@ -468,6 +509,11 @@ export async function getScheduledTask(userId: number, taskType: "auto_apply" | 
   return result.length > 0 ? result[0] : undefined;
 }
 
+/**
+ * Retrieves scheduled tasks that are enabled and whose next run time is due now or earlier.
+ *
+ * @returns An array of scheduled tasks with `isEnabled` = `true` and `nextRunAt` less than or equal to the current time; returns an empty array if the database is unavailable.
+ */
 export async function getDueScheduledTasks() {
   const db = await getDb();
   if (!db) return [];
@@ -480,6 +526,16 @@ export async function getDueScheduledTasks() {
     ));
 }
 
+/**
+ * Advance a scheduled task's run timestamps for a user.
+ *
+ * Sets `lastRunAt` to the current time and `nextRunAt` to the current time plus `intervalHours` hours
+ * for the scheduled task matching `userId` and `taskType`. If the database is unavailable, no changes are made.
+ *
+ * @param userId - The ID of the user who owns the scheduled task
+ * @param taskType - The type of scheduled task to update (`"auto_apply"`, `"job_refresh"`, or `"notification"`)
+ * @param intervalHours - Number of hours to add to the current time to compute `nextRunAt`
+ */
 export async function updateScheduledTaskRun(userId: number, taskType: "auto_apply" | "job_refresh" | "notification", intervalHours: number) {
   const db = await getDb();
   if (!db) return;
@@ -492,6 +548,13 @@ export async function updateScheduledTaskRun(userId: number, taskType: "auto_app
     .where(and(eq(scheduledTasks.userId, userId), eq(scheduledTasks.taskType, taskType)));
 }
 
+/**
+ * Update the user's profile to record the current time as the last auto-apply run.
+ *
+ * If the database client is unavailable, the function returns without making changes.
+ *
+ * @param userId - The id of the user whose profile `lastAutoApplyRun` will be set to the current time
+ */
 export async function updateProfileLastAutoApply(userId: number) {
   const db = await getDb();
   if (!db) return;
