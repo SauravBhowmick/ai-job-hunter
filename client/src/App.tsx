@@ -11,6 +11,7 @@ import Analytics from "./pages/Analytics";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 import Onboarding from "./pages/Onboarding";
+import AutoApply from "./pages/AutoApply";
 
 function Router() {
   return (
@@ -19,6 +20,7 @@ function Router() {
       <Route path="/onboarding" component={Onboarding} />
       <Route path="/job/:id" component={JobDetail} />
       <Route path="/applications" component={Applications} />
+      <Route path="/auto-apply" component={AutoApply} />
       <Route path="/analytics" component={Analytics} />
       <Route path="/profile" component={Profile} />
       <Route path="/settings" component={Settings} />

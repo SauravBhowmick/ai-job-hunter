@@ -302,17 +302,110 @@ export const appRouter = router({
 
   // Auto-Apply Management
   autoApply: router({
+    // Get candidates that would be auto-applied (preview)
     getCandidates: protectedProcedure.query(async ({ ctx }) => {
       return getAutoApplyCandidates(ctx.user.id);
     }),
     
+    // Run auto-apply
     run: protectedProcedure.mutation(async ({ ctx }) => {
       return processAutoApply(ctx.user.id);
     }),
     
+    // Get learned patterns
     getPatterns: protectedProcedure.query(async ({ ctx }) => {
       return db.getApplicationPatterns(ctx.user.id);
     }),
+    
+    // Get auto-apply history/logs
+    getHistory: protectedProcedure
+      .input(z.object({ limit: z.number().optional() }).optional())
+      .query(async ({ ctx, input }) => {
+        const { getAutoApplyHistory } = await import("./services/autoApply");
+        return getAutoApplyHistory(ctx.user.id, input?.limit || 20);
+      }),
+    
+    // Get auto-apply stats
+    getStats: protectedProcedure.query(async ({ ctx }) => {
+      const { getAutoApplyStats } = await import("./services/autoApply");
+      return getAutoApplyStats(ctx.user.id);
+    }),
+    
+    // Update auto-apply settings
+    updateSettings: protectedProcedure
+      .input(z.object({
+        autoApplyEnabled: z.boolean().optional(),
+        autoApplyConfidenceThreshold: z.number().min(50).max(100).optional(),
+        autoApplyMaxPerDay: z.number().min(1).max(20).optional(),
+        autoApplyNotifyEmail: z.boolean().optional(),
+        companyWhitelist: z.array(z.string()).optional(),
+        companyBlacklist: z.array(z.string()).optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        await db.upsertUserProfile({
+          userId: ctx.user.id,
+          ...input,
+        });
+        return { success: true };
+      }),
+    
+    // Add company to whitelist
+    addToWhitelist: protectedProcedure
+      .input(z.object({ company: z.string() }))
+      .mutation(async ({ ctx, input }) => {
+        const profile = await db.getUserProfile(ctx.user.id);
+        const whitelist = profile?.companyWhitelist || [];
+        if (!whitelist.includes(input.company)) {
+          whitelist.push(input.company);
+          await db.upsertUserProfile({
+            userId: ctx.user.id,
+            companyWhitelist: whitelist,
+          });
+        }
+        return { success: true, whitelist };
+      }),
+    
+    // Add company to blacklist
+    addToBlacklist: protectedProcedure
+      .input(z.object({ company: z.string() }))
+      .mutation(async ({ ctx, input }) => {
+        const profile = await db.getUserProfile(ctx.user.id);
+        const blacklist = profile?.companyBlacklist || [];
+        if (!blacklist.includes(input.company)) {
+          blacklist.push(input.company);
+          await db.upsertUserProfile({
+            userId: ctx.user.id,
+            companyBlacklist: blacklist,
+          });
+        }
+        return { success: true, blacklist };
+      }),
+    
+    // Remove company from whitelist
+    removeFromWhitelist: protectedProcedure
+      .input(z.object({ company: z.string() }))
+      .mutation(async ({ ctx, input }) => {
+        const profile = await db.getUserProfile(ctx.user.id);
+        const whitelist = (profile?.companyWhitelist || []).filter(c => c !== input.company);
+        await db.upsertUserProfile({
+          userId: ctx.user.id,
+          companyWhitelist: whitelist,
+        });
+        return { success: true, whitelist };
+      }),
+    
+    // Remove company from blacklist
+    removeFromBlacklist: protectedProcedure
+      .input(z.object({ company: z.string() }))
+      .mutation(async ({ ctx, input }) => {
+        const profile = await db.getUserProfile(ctx.user.id);
+        const blacklist = (profile?.companyBlacklist || []).filter(c => c !== input.company);
+        await db.upsertUserProfile({
+          userId: ctx.user.id,
+          companyBlacklist: blacklist,
+        });
+        return { success: true, blacklist };
+      }),
   }),
 
   // Search Filters
@@ -462,6 +555,88 @@ export const appRouter = router({
         newJobs: lastRefresh.newJobs,
       };
     }),
+  }),
+
+  // Scheduler
+  scheduler: router({
+    // Get scheduled tasks for user
+    getTasks: protectedProcedure.query(async ({ ctx }) => {
+      return db.getScheduledTasks(ctx.user.id);
+    }),
+    
+    // Update scheduled task settings
+    updateTask: protectedProcedure
+      .input(z.object({
+        taskType: z.enum(["auto_apply", "job_refresh", "notification"]),
+        intervalHours: z.number().min(1).max(24).optional(),
+        isEnabled: z.boolean().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const { updateScheduledTaskSettings } = await import("./services/scheduler");
+        await updateScheduledTaskSettings(ctx.user.id, input.taskType, {
+          intervalHours: input.intervalHours,
+          isEnabled: input.isEnabled,
+        });
+        return { success: true };
+      }),
+    
+    // Initialize scheduled tasks for user
+    initialize: protectedProcedure.mutation(async ({ ctx }) => {
+      const { initializeUserScheduledTasks } = await import("./services/scheduler");
+      await initializeUserScheduledTasks(ctx.user.id);
+      return { success: true };
+    }),
+    
+    // Manually trigger a task
+    trigger: protectedProcedure
+      .input(z.object({
+        taskType: z.enum(["auto_apply", "job_refresh"]),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const { triggerAutoApply, triggerJobRefresh } = await import("./services/scheduler");
+        
+        if (input.taskType === "auto_apply") {
+          return triggerAutoApply(ctx.user.id);
+        } else {
+          return triggerJobRefresh(ctx.user.id);
+        }
+      }),
+    
+    // Get scheduler status
+    getStatus: protectedProcedure.query(async () => {
+      const { getSchedulerStatus } = await import("./services/scheduler");
+      return getSchedulerStatus();
+    }),
+  }),
+
+  // Browser Automation
+  browserApply: router({
+    // Check if browser automation is available
+    isAvailable: protectedProcedure.query(async () => {
+      const { isBrowserAutomationAvailable } = await import("./services/browserAutoApply");
+      return { available: await isBrowserAutomationAvailable() };
+    }),
+    
+    // Apply to a single job using browser automation
+    applyToJob: protectedProcedure
+      .input(z.object({
+        jobId: z.number(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const { batchApplyToJobs } = await import("./services/browserAutoApply");
+        const result = await batchApplyToJobs(ctx.user.id, [input.jobId]);
+        return result.results[0];
+      }),
+    
+    // Apply to multiple jobs using browser automation
+    batchApply: protectedProcedure
+      .input(z.object({
+        jobIds: z.array(z.number()),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const { batchApplyToJobs } = await import("./services/browserAutoApply");
+        return batchApplyToJobs(ctx.user.id, input.jobIds);
+      }),
   }),
 });
 

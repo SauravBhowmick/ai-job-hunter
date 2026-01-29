@@ -1,5 +1,6 @@
 import * as db from "../db";
 import { calculateRelevanceScore } from "./jobEngine";
+import { sendAutoApplyNotification } from "./emailService";
 
 // Learn patterns from manual applications
 export async function learnFromManualApplication(userId: number, jobId: number) {
@@ -48,14 +49,41 @@ export async function learnFromManualApplication(userId: number, jobId: number) 
   }
 }
 
+// Check if company is in whitelist
+function isCompanyWhitelisted(company: string | null, whitelist: string[] | null): boolean {
+  if (!whitelist || whitelist.length === 0) return false;
+  if (!company) return false;
+  const companyLower = company.toLowerCase();
+  return whitelist.some(w => companyLower.includes(w.toLowerCase()) || w.toLowerCase().includes(companyLower));
+}
+
+// Check if company is in blacklist
+function isCompanyBlacklisted(company: string | null, blacklist: string[] | null): boolean {
+  if (!blacklist || blacklist.length === 0) return false;
+  if (!company) return false;
+  const companyLower = company.toLowerCase();
+  return blacklist.some(b => companyLower.includes(b.toLowerCase()) || b.toLowerCase().includes(companyLower));
+}
+
 // Check if a job matches user's application patterns
 export function matchesApplicationPattern(
   job: { title?: string | null; description?: string | null; keywords?: string[] | null; company?: string | null; location?: string | null },
-  patterns: { keywords?: string[] | null; companies?: string[] | null; locations?: string[] | null; minRelevanceScore?: number | null }[]
-): { matches: boolean; matchedPattern?: typeof patterns[0]; confidence: number } {
+  patterns: { keywords?: string[] | null; companies?: string[] | null; locations?: string[] | null; minRelevanceScore?: number | null }[],
+  companyWhitelist?: string[] | null,
+  companyBlacklist?: string[] | null
+): { matches: boolean; matchedPattern?: typeof patterns[0]; confidence: number; reason?: string } {
+  
+  // Check blacklist first - immediate rejection
+  if (isCompanyBlacklisted(job.company, companyBlacklist || null)) {
+    return { matches: false, confidence: 0, reason: "Company is blacklisted" };
+  }
+  
+  // Check whitelist - automatic boost
+  const isWhitelisted = isCompanyWhitelisted(job.company, companyWhitelist || null);
+  const whitelistBoost = isWhitelisted ? 30 : 0;
   
   for (const pattern of patterns) {
-    let matchScore = 0;
+    let matchScore = whitelistBoost;
     const patternKeywords = pattern.keywords || [];
     const patternCompanies = pattern.companies || [];
     const patternLocations = pattern.locations || [];
@@ -71,7 +99,7 @@ export function matchesApplicationPattern(
       matchScore += 20;
     }
     
-    // Check company match
+    // Check company match (from learned patterns)
     if (job.company && patternCompanies.some(c => c.toLowerCase() === job.company?.toLowerCase())) {
       matchScore += 30;
     }
@@ -86,26 +114,84 @@ export function matchesApplicationPattern(
     const textMatches = patternKeywords.filter(pk => text.includes(pk.toLowerCase()));
     matchScore += Math.min(30, textMatches.length * 10);
     
-    if (matchScore >= 60) {
-      return { matches: true, matchedPattern: pattern, confidence: Math.min(100, matchScore) };
+    // Whitelisted companies get a lower threshold
+    const threshold = isWhitelisted ? 50 : 60;
+    
+    if (matchScore >= threshold) {
+      return { 
+        matches: true, 
+        matchedPattern: pattern, 
+        confidence: Math.min(100, matchScore),
+        reason: isWhitelisted ? "Company is whitelisted" : undefined
+      };
     }
   }
   
   return { matches: false, confidence: 0 };
 }
 
+// Auto-apply result type
+export interface AutoApplyResult {
+  applied: number;
+  skipped: number;
+  scanned: number;
+  matched: number;
+  appliedJobs: Array<{ id: number; title: string; company: string | null }>;
+  skippedReasons: Record<string, number>;
+}
+
 // Auto-apply to matching jobs
-export async function processAutoApply(userId: number): Promise<{ applied: number; skipped: number }> {
+export async function processAutoApply(userId: number): Promise<AutoApplyResult> {
+  const result: AutoApplyResult = {
+    applied: 0,
+    skipped: 0,
+    scanned: 0,
+    matched: 0,
+    appliedJobs: [],
+    skippedReasons: {}
+  };
+  
   // Get user profile
   const profile = await db.getUserProfile(userId);
   if (!profile || !profile.autoApplyEnabled) {
-    return { applied: 0, skipped: 0 };
+    result.skippedReasons["Auto-apply disabled"] = 1;
+    return result;
+  }
+  
+  // Get settings from profile
+  const confidenceThreshold = profile.autoApplyConfidenceThreshold || 70;
+  const maxPerDay = profile.autoApplyMaxPerDay || 5;
+  const companyWhitelist = profile.companyWhitelist;
+  const companyBlacklist = profile.companyBlacklist;
+  const notifyEmail = profile.autoApplyNotifyEmail !== false;
+  
+  // Check how many we've already applied today
+  const todayCount = await db.getTodayAutoApplyCount(userId);
+  const remainingToday = Math.max(0, maxPerDay - todayCount);
+  
+  if (remainingToday <= 0) {
+    result.skippedReasons["Daily limit reached"] = 1;
+    
+    // Log the run anyway
+    await db.logAutoApplyRun({
+      userId,
+      jobsScanned: 0,
+      jobsMatched: 0,
+      jobsApplied: 0,
+      jobsSkipped: 0,
+      status: "success",
+      errorMessage: "Daily limit already reached",
+      appliedJobIds: []
+    });
+    
+    return result;
   }
   
   // Get user's application patterns
   const patterns = await db.getApplicationPatterns(userId);
   if (patterns.length === 0) {
-    return { applied: 0, skipped: 0 };
+    result.skippedReasons["No learned patterns"] = 1;
+    return result;
   }
   
   // Get recent jobs with scores
@@ -114,21 +200,41 @@ export async function processAutoApply(userId: number): Promise<{ applied: numbe
     limit: 100
   });
   
-  let applied = 0;
-  let skipped = 0;
+  result.scanned = jobsWithScores.length;
+  const appliedJobIds: number[] = [];
   
   for (const { job, score } of jobsWithScores) {
+    // Stop if we've hit the daily limit
+    if (result.applied >= remainingToday) {
+      result.skippedReasons["Daily limit reached"] = (result.skippedReasons["Daily limit reached"] || 0) + 1;
+      break;
+    }
+    
     // Skip if already applied
     const hasApplied = await db.hasAppliedToJob(userId, job.id);
     if (hasApplied) {
-      skipped++;
+      result.skipped++;
+      result.skippedReasons["Already applied"] = (result.skippedReasons["Already applied"] || 0) + 1;
       continue;
     }
     
     // Check if job matches patterns
-    const { matches, confidence } = matchesApplicationPattern(job, patterns);
+    const { matches, confidence, reason } = matchesApplicationPattern(
+      job, 
+      patterns, 
+      companyWhitelist,
+      companyBlacklist
+    );
     
-    if (matches && confidence >= 70) {
+    if (!matches) {
+      result.skipped++;
+      result.skippedReasons[reason || "Low confidence"] = (result.skippedReasons[reason || "Low confidence"] || 0) + 1;
+      continue;
+    }
+    
+    result.matched++;
+    
+    if (confidence >= confidenceThreshold) {
       // Auto-apply to this job
       await db.createApplication({
         userId,
@@ -139,25 +245,58 @@ export async function processAutoApply(userId: number): Promise<{ applied: numbe
         notes: `Auto-applied with ${confidence}% pattern match confidence. Relevance score: ${score}`,
       });
       
-      applied++;
-      
-      // Limit auto-applications per run
-      if (applied >= 5) break;
+      result.applied++;
+      result.appliedJobs.push({
+        id: job.id,
+        title: job.title,
+        company: job.company
+      });
+      appliedJobIds.push(job.id);
     } else {
-      skipped++;
+      result.skipped++;
+      result.skippedReasons[`Confidence below ${confidenceThreshold}%`] = 
+        (result.skippedReasons[`Confidence below ${confidenceThreshold}%`] || 0) + 1;
     }
   }
   
-  return { applied, skipped };
+  // Log the auto-apply run
+  await db.logAutoApplyRun({
+    userId,
+    jobsScanned: result.scanned,
+    jobsMatched: result.matched,
+    jobsApplied: result.applied,
+    jobsSkipped: result.skipped,
+    status: result.applied > 0 ? "success" : "partial",
+    appliedJobIds,
+    notificationSent: false
+  });
+  
+  // Update last auto-apply run time
+  await db.updateProfileLastAutoApply(userId);
+  
+  // Send notification if enabled and jobs were applied
+  if (notifyEmail && result.applied > 0) {
+    try {
+      await sendAutoApplyNotification(userId, result);
+    } catch (error) {
+      console.error("Failed to send auto-apply notification:", error);
+    }
+  }
+  
+  return result;
 }
 
-// Get auto-apply candidates (jobs that would be auto-applied)
+// Get auto-apply candidates (jobs that would be auto-applied) - for preview
 export async function getAutoApplyCandidates(userId: number): Promise<any[]> {
   const profile = await db.getUserProfile(userId);
   if (!profile) return [];
   
   const patterns = await db.getApplicationPatterns(userId);
   if (patterns.length === 0) return [];
+  
+  const confidenceThreshold = profile.autoApplyConfidenceThreshold || 70;
+  const companyWhitelist = profile.companyWhitelist;
+  const companyBlacklist = profile.companyBlacklist;
   
   const jobsWithScores = await db.getJobsWithScores(userId, {
     minScore: profile.relevanceThreshold || 50,
@@ -170,18 +309,66 @@ export async function getAutoApplyCandidates(userId: number): Promise<any[]> {
     const hasApplied = await db.hasAppliedToJob(userId, job.id);
     if (hasApplied) continue;
     
-    const { matches, confidence } = matchesApplicationPattern(job, patterns);
+    const { matches, confidence, reason } = matchesApplicationPattern(
+      job, 
+      patterns,
+      companyWhitelist,
+      companyBlacklist
+    );
     
-    if (matches && confidence >= 60) {
+    if (matches && confidence >= 50) { // Show candidates at 50%+ for preview
+      const isWhitelisted = isCompanyWhitelisted(job.company, companyWhitelist);
+      const isBlacklisted = isCompanyBlacklisted(job.company, companyBlacklist);
+      
       candidates.push({
         job,
         score,
         matchedKeywords,
         autoApplyConfidence: confidence,
-        wouldAutoApply: confidence >= 70
+        wouldAutoApply: confidence >= confidenceThreshold,
+        isWhitelisted,
+        isBlacklisted,
+        reason
       });
     }
   }
   
+  // Sort by confidence descending
+  candidates.sort((a, b) => b.autoApplyConfidence - a.autoApplyConfidence);
+  
   return candidates;
+}
+
+// Get auto-apply history/logs
+export async function getAutoApplyHistory(userId: number, limit: number = 20) {
+  return db.getAutoApplyLogs(userId, limit);
+}
+
+// Get auto-apply stats
+export async function getAutoApplyStats(userId: number) {
+  const profile = await db.getUserProfile(userId);
+  const logs = await db.getAutoApplyLogs(userId, 30);
+  const todayCount = await db.getTodayAutoApplyCount(userId);
+  const patterns = await db.getApplicationPatterns(userId);
+  
+  const maxPerDay = profile?.autoApplyMaxPerDay || 5;
+  
+  // Calculate stats from logs
+  const totalApplied = logs.reduce((sum, log) => sum + (log.jobsApplied || 0), 0);
+  const totalScanned = logs.reduce((sum, log) => sum + (log.jobsScanned || 0), 0);
+  const successRate = totalScanned > 0 ? Math.round((totalApplied / totalScanned) * 100) : 0;
+  
+  return {
+    isEnabled: profile?.autoApplyEnabled || false,
+    confidenceThreshold: profile?.autoApplyConfidenceThreshold || 70,
+    maxPerDay,
+    appliedToday: todayCount,
+    remainingToday: Math.max(0, maxPerDay - todayCount),
+    totalAppliedLast30Days: totalApplied,
+    patternsCount: patterns.length,
+    successRate,
+    lastRunAt: profile?.lastAutoApplyRun,
+    whitelistedCompanies: profile?.companyWhitelist?.length || 0,
+    blacklistedCompanies: profile?.companyBlacklist?.length || 0,
+  };
 }

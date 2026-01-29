@@ -9,7 +9,9 @@ import {
   searchFilters, InsertSearchFilter,
   applicationPatterns, InsertApplicationPattern,
   emailNotifications, InsertEmailNotification,
-  refreshLogs, InsertRefreshLog
+  refreshLogs, InsertRefreshLog,
+  autoApplyLogs, InsertAutoApplyLog,
+  scheduledTasks, InsertScheduledTask
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -402,4 +404,98 @@ export async function getRecentApplicationTrend(userId: number, days: number = 3
   return db.select().from(applications)
     .where(and(eq(applications.userId, userId), gte(applications.appliedAt, startDate)))
     .orderBy(desc(applications.appliedAt));
+}
+
+// ============ AUTO-APPLY LOG FUNCTIONS ============
+export async function logAutoApplyRun(log: InsertAutoApplyLog) {
+  const db = await getDb();
+  if (!db) return;
+  await db.insert(autoApplyLogs).values(log);
+}
+
+export async function getAutoApplyLogs(userId: number, limit: number = 20) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(autoApplyLogs)
+    .where(eq(autoApplyLogs.userId, userId))
+    .orderBy(desc(autoApplyLogs.runAt))
+    .limit(limit);
+}
+
+export async function getTodayAutoApplyCount(userId: number): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+  
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const logs = await db.select().from(autoApplyLogs)
+    .where(and(eq(autoApplyLogs.userId, userId), gte(autoApplyLogs.runAt, today)));
+  
+  return logs.reduce((sum, log) => sum + (log.jobsApplied || 0), 0);
+}
+
+// ============ SCHEDULED TASK FUNCTIONS ============
+export async function upsertScheduledTask(task: InsertScheduledTask) {
+  const db = await getDb();
+  if (!db) return;
+  
+  const existing = await db.select().from(scheduledTasks)
+    .where(and(eq(scheduledTasks.userId, task.userId), eq(scheduledTasks.taskType, task.taskType)))
+    .limit(1);
+  
+  if (existing.length > 0) {
+    await db.update(scheduledTasks).set(task)
+      .where(and(eq(scheduledTasks.userId, task.userId), eq(scheduledTasks.taskType, task.taskType)));
+  } else {
+    await db.insert(scheduledTasks).values(task);
+  }
+}
+
+export async function getScheduledTasks(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(scheduledTasks)
+    .where(eq(scheduledTasks.userId, userId));
+}
+
+export async function getScheduledTask(userId: number, taskType: "auto_apply" | "job_refresh" | "notification") {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(scheduledTasks)
+    .where(and(eq(scheduledTasks.userId, userId), eq(scheduledTasks.taskType, taskType)))
+    .limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function getDueScheduledTasks() {
+  const db = await getDb();
+  if (!db) return [];
+  
+  const now = new Date();
+  return db.select().from(scheduledTasks)
+    .where(and(
+      eq(scheduledTasks.isEnabled, true),
+      gte(now, scheduledTasks.nextRunAt)
+    ));
+}
+
+export async function updateScheduledTaskRun(userId: number, taskType: "auto_apply" | "job_refresh" | "notification", intervalHours: number) {
+  const db = await getDb();
+  if (!db) return;
+  
+  const now = new Date();
+  const nextRun = new Date(now.getTime() + intervalHours * 60 * 60 * 1000);
+  
+  await db.update(scheduledTasks)
+    .set({ lastRunAt: now, nextRunAt: nextRun })
+    .where(and(eq(scheduledTasks.userId, userId), eq(scheduledTasks.taskType, taskType)));
+}
+
+export async function updateProfileLastAutoApply(userId: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(userProfiles)
+    .set({ lastAutoApplyRun: new Date() })
+    .where(eq(userProfiles.userId, userId));
 }
