@@ -19,6 +19,14 @@ import { useState, useEffect } from "react";
 
 type OnboardingStep = "upload" | "review" | "preferences" | "complete";
 
+/**
+ * Renders a horizontal onboarding step indicator with visual states for active, completed, and upcoming steps.
+ *
+ * Displays three steps (Upload CV, Review Info, Preferences), shows a check icon for completed steps, highlights the active step, and renders arrows between steps.
+ *
+ * @param currentStep - The id of the currently active onboarding step (`"upload" | "review" | "preferences"`).
+ * @returns The JSX element representing the step indicator.
+ */
 function StepIndicator({ currentStep }: { currentStep: OnboardingStep }) {
   const steps = [
     { id: "upload", label: "Upload CV", icon: Upload },
@@ -61,6 +69,14 @@ function StepIndicator({ currentStep }: { currentStep: OnboardingStep }) {
   );
 }
 
+/**
+ * Renders a tag-input control that lets users add unique tags and remove existing tags.
+ *
+ * @param value - Current list of tags.
+ * @param onChange - Callback invoked with the updated list of tags after additions or removals.
+ * @param placeholder - Placeholder text shown in the text input.
+ * @returns The rendered JSX element for the tag input control.
+ */
 function TagInput({ 
   value, 
   onChange, 
@@ -117,6 +133,13 @@ function TagInput({
   );
 }
 
+/**
+ * Render the multi-step onboarding UI that guides authenticated users through CV upload, AI parsing, profile review, and job preference setup.
+ *
+ * The component handles authentication states (sign-in prompt, loading skeleton), redirects users who have already completed onboarding, pre-fills basic profile fields from the authenticated user, and provides interactive steps for uploading/pasting a CV, reviewing and editing extracted profile information, and selecting job preferences. It performs server mutations to upload and parse CVs, save profile updates, and mark onboarding as complete, and displays success/error toasts for those operations.
+ *
+ * @returns The React element for the onboarding page UI.
+ */
 export default function Onboarding() {
   const { user, loading: authLoading, isAuthenticated } = useAuth();
   const [, navigate] = useLocation();

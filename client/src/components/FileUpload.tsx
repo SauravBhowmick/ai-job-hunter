@@ -14,6 +14,20 @@ interface FileUploadProps {
   currentFileName?: string;
 }
 
+/**
+ * A drag-and-drop and click-to-upload file input for CVs that validates file type and size,
+ * converts a selected file to base64, and notifies the parent via a callback.
+ *
+ * @param onFileSelect - Callback invoked after a file is successfully read; receives the `File` and its base64 string (without the data URL prefix).
+ * @param acceptedTypes - Array of allowed file extensions (e.g., [".pdf", ".docx"]). Files with other extensions are rejected.
+ * @param maxSizeMB - Maximum allowed file size in megabytes. Files larger than this are rejected.
+ * @param className - Optional container CSS class applied to the outermost div.
+ * @param disabled - When true, disables user interaction and visual affordances.
+ * @param uploading - When true, shows an uploading spinner and disables input actions.
+ * @param uploaded - When true and a file name is available, displays a successful upload state.
+ * @param currentFileName - Optional fallback file name to display when no local selection exists.
+ * @returns The FileUpload React element.
+ */
 export function FileUpload({
   onFileSelect,
   acceptedTypes = [".pdf", ".doc", ".docx"],

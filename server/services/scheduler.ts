@@ -9,7 +9,14 @@ const SCHEDULER_CHECK_INTERVAL = 5 * 60 * 1000;
 let schedulerInterval: NodeJS.Timer | null = null;
 
 /**
- * Initialize scheduled task for a user
+ * Create default scheduled tasks for a new user.
+ *
+ * Creates three enabled tasks for the given user with initial intervals and next run times:
+ * - `auto_apply`: interval 6 hours, next run 6 hours from now
+ * - `job_refresh`: interval 5 hours, next run 5 hours from now
+ * - `notification`: interval 6 hours, next run 6 hours from now
+ *
+ * @param userId - The ID of the user to initialize scheduled tasks for
  */
 export async function initializeUserScheduledTasks(userId: number) {
   const now = new Date();
@@ -48,7 +55,15 @@ export async function initializeUserScheduledTasks(userId: number) {
 }
 
 /**
- * Run a specific scheduled task
+ * Execute the scheduled task described by `task` for the specified user and update its next run time.
+ *
+ * Performs the action associated with `task.taskType` (auto_apply, job_refresh, or notification) for `task.userId`,
+ * then advances the task's next run time using `task.intervalHours` (defaults to 6 hours when `null`).
+ *
+ * @param task - Object describing the scheduled task:
+ *   - userId: The user's numeric identifier.
+ *   - taskType: One of `"auto_apply" | "job_refresh" | "notification"` indicating which job to run.
+ *   - intervalHours: Interval in hours to schedule the next run; if `null`, 6 hours is used.
  */
 async function runScheduledTask(task: {
   userId: number;
@@ -94,7 +109,9 @@ async function runScheduledTask(task: {
 }
 
 /**
- * Check and run due scheduled tasks
+ * Finds scheduled tasks whose next run time has arrived and executes each one.
+ *
+ * @returns An object with `tasksRun` set to the number of tasks executed and an optional `error` property when execution failed
  */
 export async function checkAndRunDueTasks() {
   try {
@@ -138,7 +155,9 @@ export function startScheduler() {
 }
 
 /**
- * Stop the scheduler background process
+ * Stops the background scheduler if it is running.
+ *
+ * Clears the interval timer and resets the module's scheduler state.
  */
 export function stopScheduler() {
   if (schedulerInterval) {
@@ -149,14 +168,22 @@ export function stopScheduler() {
 }
 
 /**
- * Manually trigger auto-apply for a user
+ * Trigger the auto-apply process for the specified user.
+ *
+ * @param userId - The ID of the user to process
+ * @returns The result of the auto-apply operation
  */
 export async function triggerAutoApply(userId: number) {
   return processAutoApply(userId);
 }
 
 /**
- * Manually trigger job refresh for a user
+ * Triggers a job refresh for the specified user and re-scores jobs using the user's skills if available.
+ *
+ * If a user profile with skills exists, jobs will be re-scored after the refresh completes.
+ *
+ * @param userId - ID of the user whose jobs will be refreshed
+ * @returns The result of the job refresh operation
  */
 export async function triggerJobRefresh(userId: number) {
   const result = await refreshJobs(userId);
@@ -168,7 +195,9 @@ export async function triggerJobRefresh(userId: number) {
 }
 
 /**
- * Get scheduler status
+ * Provides the scheduler's running state and the configured check interval in minutes.
+ *
+ * @returns An object with `isRunning` set to `true` if the scheduler is active, `false` otherwise, and `checkIntervalMinutes` indicating the interval between scheduler checks in minutes.
  */
 export function getSchedulerStatus() {
   return {
@@ -178,7 +207,14 @@ export function getSchedulerStatus() {
 }
 
 /**
- * Update a user's scheduled task settings
+ * Update scheduling configuration for a user's specific scheduled task.
+ *
+ * If the task exists, updates its interval (and recalculates the next run time relative to now)
+ * and enabled state; if the task does not exist, initializes default scheduled tasks for the user.
+ *
+ * @param settings - New settings to apply to the task
+ * @param settings.intervalHours - Desired interval between runs in hours; if omitted, the task's existing interval is preserved, or 6 hours is used when creating a new next run time
+ * @param settings.isEnabled - Whether the task should be enabled; if omitted, the task's existing enabled state is preserved
  */
 export async function updateScheduledTaskSettings(
   userId: number,

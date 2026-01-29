@@ -78,7 +78,18 @@ const CV_PARSE_SCHEMA = {
 };
 
 /**
- * Parse CV text using LLM to extract structured data
+ * Extract structured CV fields from raw CV text using an LLM-powered parser.
+ *
+ * Parses the provided CV text and returns a normalized ParsedCVData object where absent optional
+ * string fields are `null`, list fields are empty arrays when missing, and numeric fields are
+ * `null` when not present or invalid. On transient parsing failures the function returns a safe
+ * empty structure and uses the first 500 characters of the input as a fallback `summary`.
+ *
+ * @param cvText - The raw CV/resume text to parse. Must be non-empty and at least 50 characters.
+ * @returns A ParsedCVData object containing parsed fields such as `fullName`, `email`, `phone`,
+ * `location`, `summary`, `skills`, `preferredTitles`, `experienceYears`, `education`, and
+ * `workExperience`.
+ * @throws Error if `cvText` is empty or shorter than 50 characters.
  */
 export async function parseCV(cvText: string): Promise<ParsedCVData> {
   if (!cvText || cvText.trim().length < 50) {
@@ -158,8 +169,13 @@ Extract the candidate's details, skills, work experience, and education.`;
 }
 
 /**
- * Extract plain text from a PDF file (basic extraction)
- * Note: For production, use a proper PDF parsing library like pdf-parse
+ * Attempt to extract readable plain text from a PDF buffer using a best-effort, naive method.
+ *
+ * This is a lightweight placeholder extraction; use a dedicated PDF parsing library for reliable results.
+ *
+ * @param pdfBuffer - The PDF file contents as a Buffer
+ * @returns The extracted readable text from the PDF
+ * @throws Error if extraction fails or the extracted text is too short to be considered valid
  */
 export async function extractTextFromPDF(pdfBuffer: Buffer): Promise<string> {
   // This is a placeholder - in production you would use pdf-parse or similar
@@ -185,7 +201,9 @@ export async function extractTextFromPDF(pdfBuffer: Buffer): Promise<string> {
 }
 
 /**
- * Clean and normalize CV text
+ * Normalize CV text by standardizing line endings, collapsing excessive blank lines and spaces, replacing tabs with single spaces, and trimming surrounding whitespace.
+ *
+ * @returns The sanitized, normalized CV text
  */
 export function cleanCVText(text: string): string {
   return text
