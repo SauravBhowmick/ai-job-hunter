@@ -150,11 +150,12 @@ export function FileUpload({
         )}
       >
         <input
-          ref={inputRef}
+        <input
           type="file"
           accept={acceptedTypes.join(",")}
           onChange={handleInputChange}
           disabled={disabled || uploading}
+          aria-label="Upload CV file"
           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
         />
 
