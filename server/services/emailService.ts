@@ -90,7 +90,7 @@ export async function sendJobNotificationEmail(
       status: success ? "sent" : "failed"
     });
     
-    console.log(`Email notification ${success ? 'sent' : 'failed'} to ${email} with ${jobs.length} jobs`);
+    console.log(`Email notification ${success ? 'sent' : 'failed'} for userId=${userId} with ${jobs.length} jobs`);
     return success;
   } catch (error) {
     console.error("Error sending email notification:", error);
@@ -229,7 +229,7 @@ export async function sendAutoApplyNotification(
       status: success ? "sent" : "failed"
     });
     
-    console.log(`Auto-apply notification ${success ? 'sent' : 'failed'} to ${email}`);
+    console.log(`Auto-apply notification ${success ? 'sent' : 'failed'} for userId=${userId} with ${result.applied} jobs applied`);
     return success;
   } catch (error) {
     console.error("Error sending auto-apply notification:", error);

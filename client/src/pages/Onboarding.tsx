@@ -263,18 +263,26 @@ export default function Onboarding() {
   };
 
   const handleSaveAndContinue = async () => {
-    await updateMutation.mutateAsync(profileData);
-    setStep("preferences");
+    try {
+      await updateMutation.mutateAsync(profileData);
+      setStep("preferences");
+    } catch (error) {
+      toast.error(`Failed to save profile: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   };
 
   const handleCompleteOnboarding = async () => {
-    // Save final preferences
-    await updateMutation.mutateAsync({
-      ...profileData,
-      preferredLocations: profileData.preferredLocations,
-    });
-    // Mark onboarding as complete
-    completeMutation.mutate();
+    try {
+      // Save final preferences
+      await updateMutation.mutateAsync({
+        ...profileData,
+        preferredLocations: profileData.preferredLocations,
+      });
+      // Mark onboarding as complete
+      completeMutation.mutate();
+    } catch (error) {
+      toast.error(`Failed to complete onboarding: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   };
 
   if (authLoading) {

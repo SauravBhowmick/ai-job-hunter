@@ -76,27 +76,30 @@ async function runScheduledTask(task: {
   
   try {
     switch (taskType) {
-      case "auto_apply":
+      case "auto_apply": {
         const profile = await db.getUserProfile(userId);
         if (profile?.autoApplyEnabled) {
           await processAutoApply(userId);
         }
         break;
+      }
         
-      case "job_refresh":
+      case "job_refresh": {
         await refreshJobs(userId);
         const userProfile = await db.getUserProfile(userId);
         if (userProfile) {
           await scoreJobsForUser(userId, userProfile.skills || []);
         }
         break;
+      }
         
-      case "notification":
+      case "notification": {
         const notifyProfile = await db.getUserProfile(userId);
         if (notifyProfile?.notificationEmail) {
           await checkAndNotify(userId);
         }
         break;
+      }
     }
     
     // Update the scheduled task with next run time

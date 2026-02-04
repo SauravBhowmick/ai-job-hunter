@@ -18,8 +18,9 @@ CREATE TABLE `auto_apply_logs` (
   `status` enum('success','partial','failed') DEFAULT 'success' NOT NULL,
   `errorMessage` text,
   `notificationSent` boolean DEFAULT false,
-  `appliedJobIds` json
-);
+  `appliedJobIds` json,
+  CONSTRAINT `fk_auto_apply_logs_userId` FOREIGN KEY (`userId`) REFERENCES `users`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB;
 
 -- Create scheduled_tasks table
 CREATE TABLE `scheduled_tasks` (
@@ -31,8 +32,10 @@ CREATE TABLE `scheduled_tasks` (
   `nextRunAt` timestamp,
   `isEnabled` boolean DEFAULT true,
   `createdAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updatedAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
+  `updatedAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT `fk_scheduled_tasks_userId` FOREIGN KEY (`userId`) REFERENCES `users`(`id`) ON DELETE CASCADE,
+  UNIQUE KEY `unique_user_task_type` (`userId`, `taskType`)
+) ENGINE=InnoDB;
 
 -- Create indexes
 CREATE INDEX `auto_apply_logs_userId_idx` ON `auto_apply_logs` (`userId`);

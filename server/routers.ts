@@ -110,20 +110,24 @@ export const appRouter = router({
         // Parse CV using AI
         const parsedData = await parseCV(cvText);
         
-        // Update profile with parsed data
-        await db.upsertUserProfile({
+        // Build update payload with only non-null values to preserve existing data
+        const updatePayload: Record<string, unknown> = {
           userId: ctx.user.id,
-          fullName: parsedData.fullName,
-          email: parsedData.email,
-          phone: parsedData.phone,
-          location: parsedData.location,
-          cvSummary: parsedData.summary,
-          skills: parsedData.skills,
-          preferredTitles: parsedData.preferredTitles,
-          experienceYears: parsedData.experienceYears,
-          education: parsedData.education,
           cvParsedAt: new Date(),
-        });
+        };
+        
+        if (parsedData.fullName !== null) updatePayload.fullName = parsedData.fullName;
+        if (parsedData.email !== null) updatePayload.email = parsedData.email;
+        if (parsedData.phone !== null) updatePayload.phone = parsedData.phone;
+        if (parsedData.location !== null) updatePayload.location = parsedData.location;
+        if (parsedData.summary !== null) updatePayload.cvSummary = parsedData.summary;
+        if (parsedData.skills && parsedData.skills.length > 0) updatePayload.skills = parsedData.skills;
+        if (parsedData.preferredTitles && parsedData.preferredTitles.length > 0) updatePayload.preferredTitles = parsedData.preferredTitles;
+        if (parsedData.experienceYears !== null) updatePayload.experienceYears = parsedData.experienceYears;
+        if (parsedData.education !== null) updatePayload.education = parsedData.education;
+        
+        // Update profile with filtered parsed data
+        await db.upsertUserProfile(updatePayload as any);
         
         return { success: true, parsedData };
       }),
@@ -355,8 +359,18 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         const profile = await db.getUserProfile(ctx.user.id);
         const whitelist = profile?.companyWhitelist || [];
-        if (!whitelist.includes(input.company)) {
-          whitelist.push(input.company);
+        
+        // Canonicalize input: trim and lowercase
+        const canonicalInput = input.company.trim().toLowerCase();
+        
+        // Check for duplicates using case-insensitive substring matching (both directions)
+        const isDuplicate = whitelist.some(existing => {
+          const existingLower = existing.toLowerCase();
+          return existingLower.includes(canonicalInput) || canonicalInput.includes(existingLower);
+        });
+        
+        if (!isDuplicate) {
+          whitelist.push(canonicalInput);
           await db.upsertUserProfile({
             userId: ctx.user.id,
             companyWhitelist: whitelist,
@@ -631,7 +645,7 @@ export const appRouter = router({
     // Apply to multiple jobs using browser automation
     batchApply: protectedProcedure
       .input(z.object({
-        jobIds: z.array(z.number()),
+        jobIds: z.array(z.number()).max(20, "Cannot apply to more than 20 jobs at once"),
       }))
       .mutation(async ({ ctx, input }) => {
         const { batchApplyToJobs } = await import("./services/browserAutoApply");

@@ -1,6 +1,7 @@
 import { invokeLLM } from "../_core/llm";
 
 export interface ParsedCVData {
+  success: boolean;
   fullName: string | null;
   email: string | null;
   phone: string | null;
@@ -138,6 +139,7 @@ Extract the candidate's details, skills, work experience, and education.`;
 
     // Validate and sanitize the parsed data
     return {
+      success: true,
       fullName: parsedData.fullName || null,
       email: parsedData.email || null,
       phone: parsedData.phone || null,
@@ -152,13 +154,20 @@ Extract the candidate's details, skills, work experience, and education.`;
   } catch (error) {
     console.error("Error parsing CV:", error);
     
-    // Return empty structure if parsing fails
+    // Sanitize fallback summary: strip excessive whitespace and limit length
+    const sanitizedSummary = cvText
+      .replace(/\s+/g, ' ')
+      .trim()
+      .substring(0, 500);
+    
+    // Return empty structure with success: false if parsing fails
     return {
+      success: false,
       fullName: null,
       email: null,
       phone: null,
       location: null,
-      summary: cvText.substring(0, 500), // Use first part as summary fallback
+      summary: sanitizedSummary,
       skills: [],
       preferredTitles: [],
       experienceYears: null,

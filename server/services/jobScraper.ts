@@ -315,8 +315,14 @@ export async function scrapeJobs(
   for (const job of allJobs) {
     const dbJob = transformToDbJob(job);
     
+    // Handle undefined externalId defensively
+    if (!dbJob.externalId) {
+      console.warn(`Job missing externalId, skipping: ${dbJob.title} at ${dbJob.company}`);
+      continue;
+    }
+    
     // Check if job already exists
-    const existing = await db.getJobByExternalId(dbJob.externalId!, dbJob.source);
+    const existing = await db.getJobByExternalId(dbJob.externalId, dbJob.source);
     if (!existing) {
       await db.insertJob(dbJob);
       newJobsCount++;

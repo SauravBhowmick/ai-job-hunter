@@ -5,6 +5,7 @@
 export const SCHENGEN_COUNTRIES = [
   "AT", // Austria
   "BE", // Belgium
+  "BG", // Bulgaria
   "CZ", // Czech Republic
   "DK", // Denmark
   "EE", // Estonia
@@ -12,6 +13,7 @@ export const SCHENGEN_COUNTRIES = [
   "FR", // France
   "DE", // Germany
   "GR", // Greece
+  "HR", // Croatia
   "HU", // Hungary
   "IS", // Iceland
   "IT", // Italy
@@ -24,6 +26,7 @@ export const SCHENGEN_COUNTRIES = [
   "NO", // Norway
   "PL", // Poland
   "PT", // Portugal
+  "RO", // Romania
   "SK", // Slovakia
   "SI", // Slovenia
   "ES", // Spain

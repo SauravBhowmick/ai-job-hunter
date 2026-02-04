@@ -1,10 +1,11 @@
-import { useState, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import { Upload, File, X, CheckCircle2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface FileUploadProps {
   onFileSelect: (file: File, base64: string) => void;
+  onClear?: () => void;
   acceptedTypes?: string[];
   maxSizeMB?: number;
   className?: string;
@@ -30,6 +31,7 @@ interface FileUploadProps {
  */
 export function FileUpload({
   onFileSelect,
+  onClear,
   acceptedTypes = [".pdf", ".doc", ".docx"],
   maxSizeMB = 10,
   className,
@@ -38,6 +40,7 @@ export function FileUpload({
   uploaded = false,
   currentFileName,
 }: FileUploadProps) {
+  const inputRef = React.useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -81,6 +84,9 @@ export function FileUpload({
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
+      if (disabled || uploading) {
+        return;
+      }
       setIsDragging(false);
 
       const file = e.dataTransfer.files[0];
@@ -88,18 +94,24 @@ export function FileUpload({
         handleFile(file);
       }
     },
-    [handleFile]
+    [handleFile, disabled, uploading]
   );
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
+    if (disabled || uploading) {
+      return;
+    }
     setIsDragging(true);
-  }, []);
+  }, [disabled, uploading]);
 
   const handleDragLeave = useCallback((e: React.DragEvent) => {
     e.preventDefault();
+    if (disabled || uploading) {
+      return;
+    }
     setIsDragging(false);
-  }, []);
+  }, [disabled, uploading]);
 
   const handleInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -114,6 +126,10 @@ export function FileUpload({
   const clearFile = () => {
     setSelectedFile(null);
     setError(null);
+    if (inputRef.current) {
+      inputRef.current.value = '';
+    }
+    onClear?.();
   };
 
   const displayFileName = selectedFile?.name || currentFileName;
@@ -134,6 +150,7 @@ export function FileUpload({
         )}
       >
         <input
+          ref={inputRef}
           type="file"
           accept={acceptedTypes.join(",")}
           onChange={handleInputChange}
