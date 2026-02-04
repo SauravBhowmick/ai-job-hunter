@@ -150,7 +150,6 @@ export function FileUpload({
         )}
       >
         <input
-        <input
           type="file"
           accept={acceptedTypes.join(",")}
           onChange={handleInputChange}
