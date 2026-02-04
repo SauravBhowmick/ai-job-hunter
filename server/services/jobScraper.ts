@@ -430,10 +430,11 @@ async function generateSimulatedSchengenJobs(
       keywords: ["machine learning", "renewable energy", "lstm", "forecasting", "smart grid", "python"],
     },
     {
-      title: "Data Engineer - Power Systems",
-      description: "Build and maintain data pipelines for power systems monitoring. Work with time-series databases like InfluxDB, create dashboards in Grafana, and ensure data quality for ML models.",
-      keywords: ["data engineer", "power systems", "influxdb", "grafana", "data pipeline", "python"],
-    },
+      const secureRandomInt = (max: number): number => {
+        const upper = Number.isFinite(max) ? Math.floor(max) : 0;
+        if (upper <= 0) return 0;
+        return randomInt(0, upper);
+      };
     {
       title: "AI Research Scientist",
       description: "Conduct cutting-edge research in artificial intelligence and machine learning. Publish papers, develop novel algorithms, and work with top researchers. PhD required. Visa sponsorship provided.",
