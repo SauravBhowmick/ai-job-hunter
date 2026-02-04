@@ -256,9 +256,9 @@ export default function Dashboard() {
   const { user, loading: authLoading, logout, isAuthenticated } = useAuth();
   const [, navigate] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedSource, setSelectedSource] = useState<string>("all");
-  const [minScore, setMinScore] = useState(0);
-  const [maxAge, setMaxAge] = useState(48);
+   },
+   { enabled: isAuthenticated && profile?.onboardingCompleted === true }
+ );
   const [schengenOnly, setSchengenOnly] = useState(false);
   const [showVisaSupport, setShowVisaSupport] = useState(false);
   
