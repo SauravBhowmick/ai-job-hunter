@@ -52,9 +52,26 @@ export function FileUpload({
     }
     if (file.size > maxSizeMB * 1024 * 1024) {
       return `File too large. Maximum size is ${maxSizeMB}MB.`;
-    }
-    return null;
-  };
+    reader.onload = () => {
+      const result = reader.result;
+      if (typeof result !== "string") {
+        setError("Failed to read file");
+        return;
+      }
+
+      const commaIdx = result.indexOf(",");
+      if (commaIdx === -1) {
+        setError("Failed to read file");
+        return;
+      }
+
+      const base64 = result.slice(commaIdx + 1).trim();
+      if (!base64) {
+        setError("Failed to read file");
+        return;
+      }
+
+      onFileSelect(file, base64);
 
   const handleFile = useCallback(
     async (file: File) => {
