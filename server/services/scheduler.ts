@@ -247,6 +247,15 @@ export async function updateScheduledTaskSettings(
       nextRunAt: nextRun,
     });
   } else {
-    await initializeUserScheduledTasks(userId);
+    const now = new Date();
+    const intervalHours = settings.intervalHours ?? 6;
+    const nextRun = new Date(now.getTime() + intervalHours * 60 * 60 * 1000);
+    await db.upsertScheduledTask({
+      userId,
+      taskType,
+      intervalHours,
+      isEnabled: settings.isEnabled ?? true,
+      nextRunAt: nextRun,
+    });
   }
 }
