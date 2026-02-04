@@ -191,15 +191,25 @@ function CompanyList({
           className={`${variant === "whitelist" ? "bg-green-500/10 text-green-600" : "bg-red-500/10 text-red-600"} flex items-center gap-1`}
         >
           {company}
+<<<<<<< HEAD
           <button 
             onClick={() => onRemove(company)}
             className="ml-1 hover:opacity-70"
+=======
+          <button
+            type="button"
+            aria-label={`Remove ${company}`}
+            onClick={() => onRemove(company)}
+            className="hover:text-destructive"
+>>>>>>> refs/remotes/origin/fix/production-readiness
           >
             <X className="h-3 w-3" />
           </button>
         </Badge>
       ))}
     </div>
+  );
+}
   );
 }
 

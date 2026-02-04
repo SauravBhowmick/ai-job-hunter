@@ -137,9 +137,6 @@ export async function checkAndRunDueTasks() {
   }
 }
 
-/**
- * Start the scheduler background process
- */
 export function startScheduler() {
   if (schedulerInterval) {
     console.log("[Scheduler] Already running");
@@ -147,14 +144,22 @@ export function startScheduler() {
   }
   
   console.log("[Scheduler] Starting background scheduler");
+  let tickInProgress = false;
+  const runTick = async () => {
+    if (tickInProgress) return;
+    tickInProgress = true;
+    try {
+      await checkAndRunDueTasks();
+    } finally {
+      tickInProgress = false;
+    }
+  };
   
   // Run immediately on startup
-  checkAndRunDueTasks();
+  runTick();
   
   // Then run every 5 minutes
-  schedulerInterval = setInterval(async () => {
-    await checkAndRunDueTasks();
-  }, SCHEDULER_CHECK_INTERVAL);
+  schedulerInterval = setInterval(runTick, SCHEDULER_CHECK_INTERVAL);
 }
 
 /**

@@ -264,10 +264,11 @@ async function applyViaIndeed(
  * and fills common fields (first name, last name, email, phone) from the provided profile. The function does not
  * perform a final submission for safety and always closes the browser before returning.
  *
- * @param pw - The Playwright module instance used to launch the browser
- * @param job - Job details (including jobUrl and jobId) to apply to
- * @param profile - Applicant profile data used to populate form fields
- * @returns An ApplicationResult: `success` is `true` and `submittedAt` is set when the form was filled (simulated); `success` is `false` and `error` contains a message if the apply control was not found or an error occurred.
+ * `@param` pw - The Playwright module instance used to launch the browser
+ * `@param` job - Job details (including jobUrl and jobId) to apply to
+ * `@param` profile - Applicant profile data used to populate form fields
+ * `@returns` An ApplicationResult: `success` is `true` and `submittedAt` is set when the form was filled (simulated); `success` is `false` and `error` contains a message if the apply control was not found or an error occurred.
+ */
 async function applyViaStepStone(
   pw: any,
   job: JobApplicationData,
@@ -326,9 +327,10 @@ async function applyViaStepStone(
  *
  * Navigates to job.jobUrl, looks for common "apply" controls, and tries to fill name, email, and phone fields using the provided profile. Does not perform a final submission; successful runs are simulated.
  *
- * @param job - Job metadata; `job.jobUrl` is used to navigate and `job.jobId` is included in the returned result
- * @param profile - Applicant data used to populate common form fields (full name, email, phone)
- * @returns An ApplicationResult. `success` is `true` if an apply control was found and common fields were filled (simulated) and `submittedAt` is set; `success` is `false` when no apply control was found or an error occurred and `error` contains the reason.
+ * `@param` job - Job metadata; `job.jobUrl` is used to navigate and `job.jobId` is included in the returned result
+ * `@param` profile - Applicant data used to populate common form fields (full name, email, phone)
+ * `@returns` An ApplicationResult. `success` is `true` if an apply control was found and common fields were filled (simulated) and `submittedAt` is set; `success` is `false` when no apply control was found or an error occurred and `error` contains the reason.
+ */
 async function applyViaGenericForm(
   pw: any,
   job: JobApplicationData,
