@@ -204,15 +204,11 @@ function CompanyList({
     </div>
   );
 }
-  );
-}
 
 export default function AutoApply() {
-  // Destructure isLoading (or loading) alongside isAuthenticated from the auth hook.
-  // This allows us to distinguish between "still checking auth" and "definitely not authenticated".
-  // NOTE: If your useAuth hook uses a different property name (e.g., "loading" or "status"),
-  // adjust the destructuring accordingly.
-  const { isAuthenticated, isLoading } = useAuth();
+  // FIX: Changed from isLoading to loading to match useAuth API
+  // The useAuth hook returns { user, loading, error, isAuthenticated, refresh, logout }
+  const { isAuthenticated, loading } = useAuth();
   const utils = trpc.useUtils();
   
   const [newWhitelistCompany, setNewWhitelistCompany] = useState("");
@@ -316,7 +312,8 @@ export default function AutoApply() {
   // Show a loading placeholder while auth status is being resolved.
   // This prevents the "Please sign in" flash for users who are actually authenticated
   // but whose auth state has not yet been confirmed.
-  if (isLoading) {
+  // FIX: Changed from isLoading to loading
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
