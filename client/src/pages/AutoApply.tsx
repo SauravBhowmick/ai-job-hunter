@@ -191,12 +191,19 @@ function CompanyList({
           className={`gap-1 ${variant === "whitelist" ? "bg-green-500/10" : "bg-red-500/10"}`}
         >
           {company}
-          <button onClick={() => onRemove(company)} className="hover:text-destructive">
+          <button
+            type="button"
+            aria-label={`Remove ${company}`}
+            onClick={() => onRemove(company)}
+            className="hover:text-destructive"
+          >
             <X className="h-3 w-3" />
           </button>
         </Badge>
       ))}
     </div>
+  );
+}
   );
 }
 
