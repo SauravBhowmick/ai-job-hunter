@@ -136,12 +136,6 @@ export function extractCountryCode(location: string | null | undefined): string 
   
   // Handle "Remote" specially
   if (locationLower.includes("remote")) {
-    // Check if specific country mentioned
-    for (const [name, code] of Object.entries(COUNTRY_CODES)) {
-      if (locationLower.includes(name)) {
-        return code;
-      }
-    }
     return null; // Remote with no country specified
   }
   
