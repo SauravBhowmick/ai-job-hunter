@@ -623,18 +623,12 @@ export const appRouter = router({
     }),
   }),
 
-  // Browser Automation
-  const result = await batchApplyToJobs(ctx.user.id, [input.jobId]);
-  const first = result.results[0];
-  if (!first) {
-    throw new Error("No application result returned.");
-  }
-  return first;
+  browserAutomation: router({
     isAvailable: protectedProcedure.query(async () => {
       const { isBrowserAutomationAvailable } = await import("./services/browserAutoApply");
       return { available: await isBrowserAutomationAvailable() };
     }),
-    
+
     // Apply to a single job using browser automation
     applyToJob: protectedProcedure
       .input(z.object({
@@ -643,8 +637,13 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         const { batchApplyToJobs } = await import("./services/browserAutoApply");
         const result = await batchApplyToJobs(ctx.user.id, [input.jobId]);
-        return result.results[0];
+        const first = result.results[0];
+        if (!first) {
+          throw new Error("No application result returned.");
+        }
+        return first;
       }),
+  })
     
     // Apply to multiple jobs using browser automation
     batchApply: protectedProcedure
