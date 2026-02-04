@@ -624,8 +624,12 @@ export const appRouter = router({
   }),
 
   // Browser Automation
-  browserApply: router({
-    // Check if browser automation is available
+  const result = await batchApplyToJobs(ctx.user.id, [input.jobId]);
+  const first = result.results[0];
+  if (!first) {
+    throw new Error("No application result returned.");
+  }
+  return first;
     isAvailable: protectedProcedure.query(async () => {
       const { isBrowserAutomationAvailable } = await import("./services/browserAutoApply");
       return { available: await isBrowserAutomationAvailable() };
