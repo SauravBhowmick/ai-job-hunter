@@ -522,7 +522,7 @@ export async function getDueScheduledTasks() {
   return db.select().from(scheduledTasks)
     .where(and(
       eq(scheduledTasks.isEnabled, true),
-      gte(now, scheduledTasks.nextRunAt)
+      lte(scheduledTasks.nextRunAt, now)
     ));
 }
 
