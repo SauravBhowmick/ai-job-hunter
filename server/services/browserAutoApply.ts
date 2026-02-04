@@ -432,10 +432,12 @@ async function tryFillField(page: any, selectors: string[], value: string) {
     const filled = await fillFormField(page, selector, value);
     if (filled) return true;
   }
-  return false;
-}
+  const simulated = (result.error || "").toLowerCase().includes("simulated");
 
-/**
+  if (result.success && !simulated) {
+    successCount++;
+
+    // Record the application
  * Apply to a list of jobs using the stored user profile and record the outcomes.
  *
  * Retrieves the user's profile, builds an applicant profile, and attempts to apply to each job sequentially via the browser automation flow. Records successful applications in the database and returns per-job results along with counts of successful and failed attempts.
