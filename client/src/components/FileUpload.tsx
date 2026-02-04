@@ -52,26 +52,9 @@ export function FileUpload({
     }
     if (file.size > maxSizeMB * 1024 * 1024) {
       return `File too large. Maximum size is ${maxSizeMB}MB.`;
-    reader.onload = () => {
-      const result = reader.result;
-      if (typeof result !== "string") {
-        setError("Failed to read file");
-        return;
-      }
-
-      const commaIdx = result.indexOf(",");
-      if (commaIdx === -1) {
-        setError("Failed to read file");
-        return;
-      }
-
-      const base64 = result.slice(commaIdx + 1).trim();
-      if (!base64) {
-        setError("Failed to read file");
-        return;
-      }
-
-      onFileSelect(file, base64);
+    }
+    return null;
+  };
 
   const handleFile = useCallback(
     async (file: File) => {
@@ -84,10 +67,26 @@ export function FileUpload({
 
       setSelectedFile(file);
 
-      // Convert to base64
       const reader = new FileReader();
       reader.onload = () => {
-        const base64 = (reader.result as string).split(",")[1];
+        const result = reader.result;
+        if (typeof result !== "string") {
+          setError("Failed to read file");
+          return;
+        }
+
+        const commaIdx = result.indexOf(",");
+        if (commaIdx === -1) {
+          setError("Failed to read file");
+          return;
+        }
+
+        const base64 = result.slice(commaIdx + 1).trim();
+        if (!base64) {
+          setError("Failed to read file");
+          return;
+        }
+
         onFileSelect(file, base64);
       };
       reader.onerror = () => {
