@@ -186,12 +186,15 @@ function CompanyList({
     <div className="flex flex-wrap gap-2">
       {companies.map((company, i) => (
         <Badge 
-          key={i} 
-          variant="secondary" 
-          className={`gap-1 ${variant === "whitelist" ? "bg-green-500/10" : "bg-red-500/10"}`}
+          key={i}
+          variant="outline"
+          className={`${variant === "whitelist" ? "bg-green-500/10 text-green-600" : "bg-red-500/10 text-red-600"} flex items-center gap-1`}
         >
           {company}
-          <button onClick={() => onRemove(company)} className="hover:text-destructive">
+          <button 
+            onClick={() => onRemove(company)}
+            className="ml-1 hover:opacity-70"
+          >
             <X className="h-3 w-3" />
           </button>
         </Badge>
@@ -200,17 +203,12 @@ function CompanyList({
   );
 }
 
-/**
- * Render the Auto-Apply dashboard for managing and running automated job applications.
- *
- * Displays status stats and provides three tabs: Preview (candidate cards with whitelist/blacklist actions),
- * Settings (toggles and sliders for auto-apply behavior plus company whitelist/blacklist management),
- * and History (recent run logs). Requires the user to be authenticated; when not authenticated it prompts for sign-in.
- *
- * @returns The React element for the Auto-Apply page UI
- */
 export default function AutoApply() {
-  const { isAuthenticated } = useAuth();
+  // Destructure isLoading (or loading) alongside isAuthenticated from the auth hook.
+  // This allows us to distinguish between "still checking auth" and "definitely not authenticated".
+  // NOTE: If your useAuth hook uses a different property name (e.g., "loading" or "status"),
+  // adjust the destructuring accordingly.
+  const { isAuthenticated, isLoading } = useAuth();
   const utils = trpc.useUtils();
   
   const [newWhitelistCompany, setNewWhitelistCompany] = useState("");
@@ -310,7 +308,22 @@ export default function AutoApply() {
   const handleSaveSettings = () => {
     updateSettingsMutation.mutate(settings);
   };
-  
+
+  // Show a loading placeholder while auth status is being resolved.
+  // This prevents the "Please sign in" flash for users who are actually authenticated
+  // but whose auth state has not yet been confirmed.
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Only show the sign-in message after we have confirmed the user is not authenticated.
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -318,78 +331,113 @@ export default function AutoApply() {
       </div>
     );
   }
-  
+
   return (
     <div className="flex min-h-screen bg-background">
       <Sidebar />
       
       <main className="flex-1 p-6 overflow-auto">
-        <div className="max-w-5xl">
-          <div className="flex items-center justify-between mb-6">
+        <div className="max-w-6xl mx-auto space-y-6">
+          <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-2xl font-bold flex items-center gap-2">
-                <Zap className="h-6 w-6 text-primary" />
+              <h1 className="text-3xl font-bold flex items-center gap-2">
+                <Zap className="h-8 w-8 text-yellow-500" />
                 Auto-Apply
-              </h2>
-              <p className="text-muted-foreground">
-                Automatically apply to jobs matching your patterns
+              </h1>
+              <p className="text-muted-foreground mt-1">
+                Automatically apply to matching jobs based on your preferences
               </p>
             </div>
+            
             <Button 
+              size="lg"
               onClick={() => runMutation.mutate()}
-              disabled={runMutation.isPending || !stats?.isEnabled}
+              disabled={runMutation.isPending || !settings.autoApplyEnabled}
             >
-              <Play className="h-4 w-4 mr-2" />
-              {runMutation.isPending ? "Running..." : "Run Auto-Apply"}
+              {runMutation.isPending ? (
+                <>
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent mr-2" />
+                  Running...
+                </>
+              ) : (
+                <>
+                  <Play className="h-4 w-4 mr-2" />
+                  Run Auto-Apply Now
+                </>
+              )}
             </Button>
           </div>
           
-          {/* Stats Cards */}
-          {statsLoading ? (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-              {[1,2,3,4].map(i => <Skeleton key={i} className="h-24" />)}
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-              <Card>
-                <CardContent className="pt-4">
-                  <div className="flex items-center gap-2">
-                    <div className={`h-3 w-3 rounded-full ${stats?.isEnabled ? 'bg-green-500' : 'bg-red-500'}`} />
-                    <span className="text-sm text-muted-foreground">Status</span>
-                  </div>
-                  <div className="text-2xl font-bold mt-1">
-                    {stats?.isEnabled ? "Enabled" : "Disabled"}
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="pt-4">
-                  <div className="text-sm text-muted-foreground">Applied Today</div>
-                  <div className="text-2xl font-bold">
-                    {stats?.appliedToday || 0} / {stats?.maxPerDay || 5}
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="pt-4">
-                  <div className="text-sm text-muted-foreground">Learned Patterns</div>
-                  <div className="text-2xl font-bold">{stats?.patternsCount || 0}</div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="pt-4">
-                  <div className="text-sm text-muted-foreground">Last 30 Days</div>
-                  <div className="text-2xl font-bold">{stats?.totalAppliedLast30Days || 0}</div>
-                </CardContent>
-              </Card>
-            </div>
-          )}
+          {/* Stats Overview */}
+          <div className="grid md:grid-cols-4 gap-4">
+            {statsLoading ? (
+              [1,2,3,4].map(i => <Skeleton key={i} className="h-24" />)
+            ) : (
+              <>
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="flex items-center gap-4">
+                      <div className="p-3 bg-primary/10 rounded-lg">
+                        <Eye className="h-6 w-6 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Jobs Scanned</p>
+                        <p className="text-2xl font-bold">{stats?.totalScanned || 0}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="flex items-center gap-4">
+                      <div className="p-3 bg-green-500/10 rounded-lg">
+                        <CheckCircle2 className="h-6 w-6 text-green-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Auto-Applied</p>
+                        <p className="text-2xl font-bold">{stats?.totalApplied || 0}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="flex items-center gap-4">
+                      <div className="p-3 bg-yellow-500/10 rounded-lg">
+                        <AlertCircle className="h-6 w-6 text-yellow-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Below Threshold</p>
+                        <p className="text-2xl font-bold">{stats?.belowThreshold || 0}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="flex items-center gap-4">
+                      <div className="p-3 bg-blue-500/10 rounded-lg">
+                        <TrendingUp className="h-6 w-6 text-blue-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Success Rate</p>
+                        <p className="text-2xl font-bold">{stats?.successRate || 0}%</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </>
+            )}
+          </div>
           
-          <Tabs defaultValue="preview" className="space-y-4">
+          <Tabs defaultValue="candidates" className="space-y-4">
             <TabsList>
-              <TabsTrigger value="preview" className="gap-2">
+              <TabsTrigger value="candidates" className="gap-2">
                 <Eye className="h-4 w-4" />
-                Preview
+                Candidates
               </TabsTrigger>
               <TabsTrigger value="settings" className="gap-2">
                 <Settings2 className="h-4 w-4" />
@@ -401,28 +449,28 @@ export default function AutoApply() {
               </TabsTrigger>
             </TabsList>
             
-            {/* Preview Tab */}
-            <TabsContent value="preview">
+            {/* Candidates Tab */}
+            <TabsContent value="candidates">
               <Card>
                 <CardHeader>
                   <CardTitle>Auto-Apply Candidates</CardTitle>
                   <CardDescription>
-                    Jobs that match your learned patterns. Green = will auto-apply, Yellow = below confidence threshold.
+                    Jobs that match your criteria for automatic application
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   {candidatesLoading ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {[1,2,3,4].map(i => <Skeleton key={i} className="h-48" />)}
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {[1,2,3,4,5,6].map(i => <Skeleton key={i} className="h-48" />)}
                     </div>
                   ) : candidates && candidates.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {candidates.map((candidate: any, i: number) => (
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {candidates.map((candidate: any) => (
                         <CandidateCard 
-                          key={i} 
+                          key={candidate.job.id}
                           candidate={candidate}
-                          onWhitelist={(c) => addToWhitelistMutation.mutate({ company: c })}
-                          onBlacklist={(c) => addToBlacklistMutation.mutate({ company: c })}
+                          onWhitelist={(company) => addToWhitelistMutation.mutate({ company })}
+                          onBlacklist={(company) => addToBlacklistMutation.mutate({ company })}
                         />
                       ))}
                     </div>
@@ -431,7 +479,7 @@ export default function AutoApply() {
                       <Zap className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                       <h3 className="text-lg font-medium mb-2">No candidates found</h3>
                       <p className="text-muted-foreground">
-                        Apply to some jobs manually to help the system learn your preferences.
+                        Upload your resume and configure your preferences to see matching jobs.
                       </p>
                     </div>
                   )}
@@ -441,11 +489,13 @@ export default function AutoApply() {
             
             {/* Settings Tab */}
             <TabsContent value="settings">
-              <div className="grid gap-6">
+              <div className="space-y-6">
                 <Card>
                   <CardHeader>
                     <CardTitle>Auto-Apply Settings</CardTitle>
-                    <CardDescription>Configure how auto-apply works for you</CardDescription>
+                    <CardDescription>
+                      Configure how automatic applications work
+                    </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
                     <div className="flex items-center justify-between">
