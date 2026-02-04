@@ -447,7 +447,16 @@ async function generateSimulatedSchengenJobs(
     {
       title: "Energy Systems Analyst",
       description: "Analyze power systems data, develop predictive models for grid operations, and support decision-making with data-driven insights. Strong background in energy economics and data analysis required.",
-      keywords: ["energy systems", "analyst", "power systems", "data analysis", "grid operations"],
+      if (
+        locations.length === 0 ||
+        companies.length === 0 ||
+        jobTemplates.length === 0 ||
+        hoursAgo.length === 0
+      ) {
+        throw new Error("Simulated job generation misconfigured: source arrays are empty");
+      }
+
+      const loc = locations[secureRandomInt(locations.length)];
     },
     {
       title: "Cloud Infrastructure Engineer",
