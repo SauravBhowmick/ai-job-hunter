@@ -326,9 +326,10 @@ async function applyViaStepStone(
  *
  * Navigates to job.jobUrl, looks for common "apply" controls, and tries to fill name, email, and phone fields using the provided profile. Does not perform a final submission; successful runs are simulated.
  *
- * @param job - Job metadata; `job.jobUrl` is used to navigate and `job.jobId` is included in the returned result
- * @param profile - Applicant data used to populate common form fields (full name, email, phone)
- * @returns An ApplicationResult. `success` is `true` if an apply control was found and common fields were filled (simulated) and `submittedAt` is set; `success` is `false` when no apply control was found or an error occurred and `error` contains the reason.
+ * `@param` job - Job metadata; `job.jobUrl` is used to navigate and `job.jobId` is included in the returned result
+ * `@param` profile - Applicant data used to populate common form fields (full name, email, phone)
+ * `@returns` An ApplicationResult. `success` is `true` if an apply control was found and common fields were filled (simulated) and `submittedAt` is set; `success` is `false` when no apply control was found or an error occurred and `error` contains the reason.
+ */
 async function applyViaGenericForm(
   pw: any,
   job: JobApplicationData,
