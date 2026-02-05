@@ -595,10 +595,15 @@ export default function AutoApply() {
                           }}
                         />
                         <Button 
+                          aria-label="Add company to whitelist"
                           onClick={() => addToWhitelistMutation.mutate({ company: newWhitelistCompany })}
-                          disabled={!newWhitelistCompany}
+                          disabled={!newWhitelistCompany || addToWhitelistMutation.isPending}
                         >
-                          <Plus className="h-4 w-4" />
+                          {addToWhitelistMutation.isPending ? (
+                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                          ) : (
+                            <Plus className="h-4 w-4" />
+                          )}
                         </Button>
                       </div>
                       <CompanyList 
