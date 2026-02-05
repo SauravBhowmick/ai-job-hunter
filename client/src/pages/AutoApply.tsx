@@ -279,6 +279,9 @@ export default function AutoApply() {
       utils.profile.get.invalidate();
       utils.autoApply.getCandidates.invalidate();
       setNewWhitelistCompany("");
+    },
+    onError: (error) => {
+      toast.error(error.message);
     }
   });
   
@@ -288,6 +291,9 @@ export default function AutoApply() {
       utils.profile.get.invalidate();
       utils.autoApply.getCandidates.invalidate();
       setNewBlacklistCompany("");
+    },
+    onError: (error) => {
+      toast.error(error.message);
     }
   });
   
@@ -295,6 +301,9 @@ export default function AutoApply() {
     onSuccess: () => {
       utils.profile.get.invalidate();
       utils.autoApply.getCandidates.invalidate();
+    },
+    onError: (error) => {
+      toast.error(error.message);
     }
   });
   
@@ -302,6 +311,9 @@ export default function AutoApply() {
     onSuccess: () => {
       utils.profile.get.invalidate();
       utils.autoApply.getCandidates.invalidate();
+    },
+    onError: (error) => {
+      toast.error(error.message);
     }
   });
   
