@@ -643,8 +643,6 @@ export const appRouter = router({
         }
         return first;
       }),
-  })
-    
     // Apply to multiple jobs using browser automation
     batchApply: protectedProcedure
       .input(z.object({
@@ -654,7 +652,7 @@ export const appRouter = router({
         const { batchApplyToJobs } = await import("./services/browserAutoApply");
         return batchApplyToJobs(ctx.user.id, input.jobIds);
       }),
-  }),
+    }),
 });
 
 export type AppRouter = typeof appRouter;
