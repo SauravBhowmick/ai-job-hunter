@@ -484,15 +484,13 @@ async function generateSimulatedSchengenJobs(
     return randomInt(0, max);
   };
 
-  salary: secureRandomBool(0.4)
-    ? (() => {
-        const a = 60 + secureRandomInt(60);
-        const b = 90 + secureRandomInt(40);
-        const min = Math.min(a, b);
-        const max = Math.max(a, b);
-        return `€${min}k - €${max}k`;
-      })()
-    : undefined,
+  // Helper functions for secure randomness
+  const secureRandomInt = (max: number): number => {
+    if (max <= 0) return 0;
+    return randomInt(0, max);
+  };
+
+  const secureRandomBool = (probability: number): boolean => {
     const scale = 1_000_000;
     const threshold = Math.floor(probability * scale);
     const value = randomInt(0, scale);
