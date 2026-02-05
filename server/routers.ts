@@ -193,9 +193,7 @@ export const appRouter = router({
         
         // Show only jobs with VISA sponsorship (for non-Schengen jobs)
         if (options.showVisaSponsorshipOnly) {
-          jobsWithScores = jobsWithScores.filter(j => 
-            j.job.isSchengen === true || j.job.visaSponsorship === "yes"
-          );
+          jobsWithScores = jobsWithScores.filter(j => j.job.visaSponsorship === "yes");
         }
         
         // Apply final limit
