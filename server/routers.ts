@@ -7,6 +7,8 @@ import * as db from "./db";
 import { refreshJobs, scoreJobsForUser, getMatchingJobs, calculateRelevanceScore } from "./services/jobEngine";
 import { learnFromManualApplication, processAutoApply, getAutoApplyCandidates } from "./services/autoApply";
 import { sendJobNotificationEmail, checkAndNotify } from "./services/emailService";
+import { storagePut, storageGet } from "./storage";
+import { parseCV } from "./services/cvParser";
 
 export const appRouter = router({
   system: systemRouter,
@@ -33,6 +35,7 @@ export const appRouter = router({
         phone: z.string().optional(),
         location: z.string().optional(),
         cvSummary: z.string().optional(),
+        cvFileUrl: z.string().optional(),
         skills: z.array(z.string()).optional(),
         preferredTitles: z.array(z.string()).optional(),
         preferredLocations: z.array(z.string()).optional(),
@@ -41,6 +44,7 @@ export const appRouter = router({
         notificationEmail: z.string().email().optional(),
         autoApplyEnabled: z.boolean().optional(),
         relevanceThreshold: z.number().min(0).max(100).optional(),
+        onboardingCompleted: z.boolean().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         await db.upsertUserProfile({
@@ -49,6 +53,102 @@ export const appRouter = router({
         });
         return { success: true };
       }),
+    
+    // Upload CV file
+    uploadCV: protectedProcedure
+      .input(z.object({
+        fileData: z.string(), // Base64 encoded file data
+        fileName: z.string(),
+        mimeType: z.string(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const { fileData, fileName, mimeType } = input;
+        
+        // Validate file type
+        const allowedTypes = [
+          "application/pdf",
+          "application/msword",
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ];
+        if (!allowedTypes.includes(mimeType)) {
+          throw new Error("Invalid file type. Please upload a PDF or Word document.");
+        }
+        
+        // Decode base64 to buffer
+        const buffer = Buffer.from(fileData, "base64");
+        
+        // Check file size (max 10MB)
+        if (buffer.length > 10 * 1024 * 1024) {
+          throw new Error("File too large. Maximum size is 10MB.");
+        }
+        
+        // Generate storage path
+        const timestamp = Date.now();
+        const ext = fileName.split(".").pop() || "pdf";
+        const storagePath = `cvs/${ctx.user.id}/${timestamp}_cv.${ext}`;
+        
+        // Upload to storage
+        const { url } = await storagePut(storagePath, buffer, mimeType);
+        
+        // Update profile with CV URL
+        await db.upsertUserProfile({
+          userId: ctx.user.id,
+          cvFileUrl: url,
+        });
+        
+        return { success: true, url };
+      }),
+    
+    // Parse CV with AI
+    parseCV: protectedProcedure
+      .input(z.object({
+        cvText: z.string(), // Extracted text from CV
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const { cvText } = input;
+        
+        // Parse CV using AI
+        const parsedData = await parseCV(cvText);
+        
+        // Build update payload with only non-null values to preserve existing data
+        const updatePayload: Record<string, unknown> = {
+          userId: ctx.user.id,
+          cvParsedAt: new Date(),
+        };
+        
+        if (parsedData.fullName !== null) updatePayload.fullName = parsedData.fullName;
+        if (parsedData.email !== null) updatePayload.email = parsedData.email;
+        if (parsedData.phone !== null) updatePayload.phone = parsedData.phone;
+        if (parsedData.location !== null) updatePayload.location = parsedData.location;
+        if (parsedData.summary !== null) updatePayload.cvSummary = parsedData.summary;
+        if (parsedData.skills && parsedData.skills.length > 0) updatePayload.skills = parsedData.skills;
+        if (parsedData.preferredTitles && parsedData.preferredTitles.length > 0) updatePayload.preferredTitles = parsedData.preferredTitles;
+        if (parsedData.experienceYears !== null) updatePayload.experienceYears = parsedData.experienceYears;
+        if (parsedData.education !== null) updatePayload.education = parsedData.education;
+        
+        // Update profile with filtered parsed data
+        await db.upsertUserProfile(updatePayload as any);
+        
+        return { success: true, parsedData };
+      }),
+    
+    // Complete onboarding
+    completeOnboarding: protectedProcedure.mutation(async ({ ctx }) => {
+      await db.upsertUserProfile({
+        userId: ctx.user.id,
+        onboardingCompleted: true,
+      });
+      return { success: true };
+    }),
+    
+    // Get CV download URL
+    getCVUrl: protectedProcedure.query(async ({ ctx }) => {
+      const profile = await db.getUserProfile(ctx.user.id);
+      if (!profile?.cvFileUrl) {
+        return { url: null };
+      }
+      return { url: profile.cvFileUrl };
+    }),
   }),
 
   // Job Management
@@ -60,25 +160,44 @@ export const appRouter = router({
         maxAgeHours: z.number().optional(),
         limit: z.number().optional(),
         offset: z.number().optional(),
+        schengenOnly: z.boolean().optional(),
+        visaSponsorship: z.enum(["yes", "no", "unknown"]).optional(),
+        showVisaSponsorshipOnly: z.boolean().optional(),
       }).optional())
       .query(async ({ ctx, input }) => {
         const options = input || {};
         
         // Get jobs with scores for this user
-        const jobsWithScores = await db.getJobsWithScores(ctx.user.id, {
+        let jobsWithScores = await db.getJobsWithScores(ctx.user.id, {
           minScore: options.minScore,
           sources: options.sources,
-          limit: options.limit || 50,
+          limit: options.limit || 100, // Fetch more to allow for filtering
           offset: options.offset || 0,
         });
         
         // Filter by age if specified
         if (options.maxAgeHours) {
           const minDate = new Date(Date.now() - options.maxAgeHours * 60 * 60 * 1000);
-          return jobsWithScores.filter(j => j.job.postedAt && j.job.postedAt >= minDate);
+          jobsWithScores = jobsWithScores.filter(j => j.job.postedAt && j.job.postedAt >= minDate);
         }
         
-        return jobsWithScores;
+        // Filter by Schengen if specified
+        if (options.schengenOnly) {
+          jobsWithScores = jobsWithScores.filter(j => j.job.isSchengen === true);
+        }
+        
+        // Filter by VISA sponsorship - showVisaSponsorshipOnly takes precedence over visaSponsorship
+        // to avoid conflicting filters (e.g., visaSponsorship: "no" + showVisaSponsorshipOnly: true)
+        if (options.showVisaSponsorshipOnly) {
+          jobsWithScores = jobsWithScores.filter(j => 
+            j.job.isSchengen === true || j.job.visaSponsorship === "yes"
+          );
+        } else if (options.visaSponsorship) {
+          jobsWithScores = jobsWithScores.filter(j => j.job.visaSponsorship === options.visaSponsorship);
+        }
+        
+        // Apply final limit
+        return jobsWithScores.slice(0, options.limit || 50);
       }),
     
     getById: protectedProcedure
@@ -185,17 +304,132 @@ export const appRouter = router({
 
   // Auto-Apply Management
   autoApply: router({
+    // Get candidates that would be auto-applied (preview)
     getCandidates: protectedProcedure.query(async ({ ctx }) => {
       return getAutoApplyCandidates(ctx.user.id);
     }),
     
+    // Run auto-apply
     run: protectedProcedure.mutation(async ({ ctx }) => {
       return processAutoApply(ctx.user.id);
     }),
     
+    // Get learned patterns
     getPatterns: protectedProcedure.query(async ({ ctx }) => {
       return db.getApplicationPatterns(ctx.user.id);
     }),
+    
+    // Get auto-apply history/logs
+    getHistory: protectedProcedure
+      .input(z.object({ limit: z.number().optional() }).optional())
+      .query(async ({ ctx, input }) => {
+        const { getAutoApplyHistory } = await import("./services/autoApply");
+        return getAutoApplyHistory(ctx.user.id, input?.limit || 20);
+      }),
+    
+    // Get auto-apply stats
+    getStats: protectedProcedure.query(async ({ ctx }) => {
+      const { getAutoApplyStats } = await import("./services/autoApply");
+      return getAutoApplyStats(ctx.user.id);
+    }),
+    
+    // Update auto-apply settings
+    updateSettings: protectedProcedure
+      .input(z.object({
+        autoApplyEnabled: z.boolean().optional(),
+        autoApplyConfidenceThreshold: z.number().min(50).max(100).optional(),
+        autoApplyMaxPerDay: z.number().min(1).max(20).optional(),
+        autoApplyNotifyEmail: z.boolean().optional(),
+        companyWhitelist: z.array(z.string()).optional(),
+        companyBlacklist: z.array(z.string()).optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        await db.upsertUserProfile({
+          userId: ctx.user.id,
+          ...input,
+        });
+        return { success: true };
+      }),
+    
+    // Add company to whitelist
+    addToWhitelist: protectedProcedure
+      .input(z.object({ company: z.string() }))
+      .mutation(async ({ ctx, input }) => {
+        const profile = await db.getUserProfile(ctx.user.id);
+        const whitelist = profile?.companyWhitelist || [];
+        
+        // Canonicalize input: trim and lowercase
+        const canonicalInput = input.company.trim().toLowerCase();
+        
+        // Check for duplicates using case-insensitive substring matching (both directions)
+        const isDuplicate = whitelist.some(existing => {
+          const existingLower = existing.toLowerCase();
+          return existingLower.includes(canonicalInput) || canonicalInput.includes(existingLower);
+        });
+        
+        if (!isDuplicate) {
+          whitelist.push(canonicalInput);
+          await db.upsertUserProfile({
+            userId: ctx.user.id,
+            companyWhitelist: whitelist,
+          });
+        }
+        return { success: true, whitelist };
+      }),
+    
+    // Add company to blacklist
+    addToBlacklist: protectedProcedure
+      .input(z.object({ company: z.string() }))
+      .mutation(async ({ ctx, input }) => {
+        const profile = await db.getUserProfile(ctx.user.id);
+        const blacklist = profile?.companyBlacklist || [];
+        
+        // Canonicalize input: trim and lowercase
+        const canonicalInput = input.company.trim().toLowerCase();
+        
+        // Check for duplicates using case-insensitive substring matching (both directions)
+        const isDuplicate = blacklist.some(existing => {
+          const existingLower = existing.toLowerCase();
+          return existingLower.includes(canonicalInput) || canonicalInput.includes(existingLower);
+        });
+        
+        if (!isDuplicate) {
+          blacklist.push(canonicalInput);
+          await db.upsertUserProfile({
+            userId: ctx.user.id,
+            companyBlacklist: blacklist,
+          });
+        }
+        return { success: true, blacklist };
+      }),
+    
+    // Remove company from whitelist
+    removeFromWhitelist: protectedProcedure
+      .input(z.object({ company: z.string() }))
+      .mutation(async ({ ctx, input }) => {
+        const profile = await db.getUserProfile(ctx.user.id);
+        const inputLower = input.company.trim().toLowerCase();
+        const whitelist = (profile?.companyWhitelist || []).filter(c => c.toLowerCase() !== inputLower);
+        await db.upsertUserProfile({
+          userId: ctx.user.id,
+          companyWhitelist: whitelist,
+        });
+        return { success: true, whitelist };
+      }),
+    
+    // Remove company from blacklist
+    removeFromBlacklist: protectedProcedure
+      .input(z.object({ company: z.string() }))
+      .mutation(async ({ ctx, input }) => {
+        const profile = await db.getUserProfile(ctx.user.id);
+        const inputLower = input.company.trim().toLowerCase();
+        const blacklist = (profile?.companyBlacklist || []).filter(c => c.toLowerCase() !== inputLower);
+        await db.upsertUserProfile({
+          userId: ctx.user.id,
+          companyBlacklist: blacklist,
+        });
+        return { success: true, blacklist };
+      }),
   }),
 
   // Search Filters
@@ -346,6 +580,89 @@ export const appRouter = router({
       };
     }),
   }),
+
+  // Scheduler
+  scheduler: router({
+    // Get scheduled tasks for user
+    getTasks: protectedProcedure.query(async ({ ctx }) => {
+      return db.getScheduledTasks(ctx.user.id);
+    }),
+    
+    // Update scheduled task settings
+    updateTask: protectedProcedure
+      .input(z.object({
+        taskType: z.enum(["auto_apply", "job_refresh", "notification"]),
+        intervalHours: z.number().min(1).max(24).optional(),
+        isEnabled: z.boolean().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const { updateScheduledTaskSettings } = await import("./services/scheduler");
+        await updateScheduledTaskSettings(ctx.user.id, input.taskType, {
+          intervalHours: input.intervalHours,
+          isEnabled: input.isEnabled,
+        });
+        return { success: true };
+      }),
+    
+    // Initialize scheduled tasks for user
+    initialize: protectedProcedure.mutation(async ({ ctx }) => {
+      const { initializeUserScheduledTasks } = await import("./services/scheduler");
+      await initializeUserScheduledTasks(ctx.user.id);
+      return { success: true };
+    }),
+    
+    // Manually trigger a task
+    trigger: protectedProcedure
+      .input(z.object({
+        taskType: z.enum(["auto_apply", "job_refresh"]),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const { triggerAutoApply, triggerJobRefresh } = await import("./services/scheduler");
+        
+        if (input.taskType === "auto_apply") {
+          return triggerAutoApply(ctx.user.id);
+        } else {
+          return triggerJobRefresh(ctx.user.id);
+        }
+      }),
+    
+    // Get scheduler status
+    getStatus: protectedProcedure.query(async () => {
+      const { getSchedulerStatus } = await import("./services/scheduler");
+      return getSchedulerStatus();
+    }),
+  }),
+
+  browserAutomation: router({
+    isAvailable: protectedProcedure.query(async () => {
+      const { isBrowserAutomationAvailable } = await import("./services/browserAutoApply");
+      return { available: await isBrowserAutomationAvailable() };
+    }),
+
+    // Apply to a single job using browser automation
+    applyToJob: protectedProcedure
+      .input(z.object({
+        jobId: z.number(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const { batchApplyToJobs } = await import("./services/browserAutoApply");
+        const result = await batchApplyToJobs(ctx.user.id, [input.jobId]);
+        const first = result.results[0];
+        if (!first) {
+          throw new Error("No application result returned.");
+        }
+        return first;
+      }),
+    // Apply to multiple jobs using browser automation
+    batchApply: protectedProcedure
+      .input(z.object({
+        jobIds: z.array(z.number()).max(20, "Cannot apply to more than 20 jobs at once"),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const { batchApplyToJobs } = await import("./services/browserAutoApply");
+        return batchApplyToJobs(ctx.user.id, input.jobIds);
+      }),
+    }),
 });
 
 export type AppRouter = typeof appRouter;

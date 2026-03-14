@@ -17,6 +17,11 @@ const envSchema = z.object({
   // Optional: Email notifications
   BUILT_IN_FORGE_API_URL: z.string().url().optional(),
   BUILT_IN_FORGE_API_KEY: z.string().optional(),
+  
+  // Optional: Job APIs
+  ADZUNA_APP_ID: z.string().optional(),
+  ADZUNA_APP_KEY: z.string().optional(),
+  JSEARCH_API_KEY: z.string().optional(),
 });
 
 const parseResult = envSchema.safeParse(process.env);
@@ -41,4 +46,9 @@ export const ENV = {
   isProduction: parseResult.data.NODE_ENV === 'production',
   forgeApiUrl: parseResult.data.BUILT_IN_FORGE_API_URL ?? '',
   forgeApiKey: parseResult.data.BUILT_IN_FORGE_API_KEY ?? '',
+  
+  // Job APIs
+  adzunaAppId: parseResult.data.ADZUNA_APP_ID ?? '',
+  adzunaAppKey: parseResult.data.ADZUNA_APP_KEY ?? '',
+  jsearchApiKey: parseResult.data.JSEARCH_API_KEY ?? '',
 };

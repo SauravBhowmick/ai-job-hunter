@@ -30,6 +30,9 @@ export const userProfiles = mysqlTable("user_profiles", {
   phone: varchar("phone", { length: 50 }),
   location: varchar("location", { length: 255 }),
   cvSummary: text("cvSummary"),
+  cvFileUrl: varchar("cvFileUrl", { length: 500 }),
+  cvParsedAt: timestamp("cvParsedAt"),
+  onboardingCompleted: boolean("onboardingCompleted").default(false),
   skills: json("skills").$type<string[]>(),
   preferredTitles: json("preferredTitles").$type<string[]>(),
   preferredLocations: json("preferredLocations").$type<string[]>(),
@@ -38,6 +41,13 @@ export const userProfiles = mysqlTable("user_profiles", {
   notificationEmail: varchar("notificationEmail", { length: 320 }).default("bhowmick.saurav@outlook.com"),
   autoApplyEnabled: boolean("autoApplyEnabled").default(false),
   relevanceThreshold: int("relevanceThreshold").default(50),
+  // Auto-apply settings
+  autoApplyConfidenceThreshold: int("autoApplyConfidenceThreshold").default(70),
+  autoApplyMaxPerDay: int("autoApplyMaxPerDay").default(5),
+  autoApplyNotifyEmail: boolean("autoApplyNotifyEmail").default(true),
+  companyWhitelist: json("companyWhitelist").$type<string[]>(),
+  companyBlacklist: json("companyBlacklist").$type<string[]>(),
+  lastAutoApplyRun: timestamp("lastAutoApplyRun"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
@@ -51,10 +61,13 @@ export type InsertUserProfile = typeof userProfiles.$inferInsert;
 export const jobs = mysqlTable("jobs", {
   id: int("id").autoincrement().primaryKey(),
   externalId: varchar("externalId", { length: 255 }),
-  source: mysqlEnum("source", ["linkedin", "indeed", "stepstone", "energy_jobline", "datacareer"]).notNull(),
+  source: mysqlEnum("source", ["linkedin", "indeed", "stepstone", "energy_jobline", "datacareer", "adzuna", "jsearch", "remoteok", "simulated"]).notNull(),
   title: varchar("title", { length: 500 }).notNull(),
   company: varchar("company", { length: 255 }),
   location: varchar("location", { length: 255 }),
+  country: varchar("country", { length: 3 }),
+  isSchengen: boolean("isSchengen").default(false),
+  visaSponsorship: mysqlEnum("visaSponsorship", ["yes", "no", "unknown"]).default("unknown"),
   description: text("description"),
   requirements: text("requirements"),
   salary: varchar("salary", { length: 100 }),
@@ -181,3 +194,41 @@ export const refreshLogs = mysqlTable("refresh_logs", {
 
 export type RefreshLog = typeof refreshLogs.$inferSelect;
 export type InsertRefreshLog = typeof refreshLogs.$inferInsert;
+
+/**
+ * Auto-apply run logs for tracking automated job applications
+ */
+export const autoApplyLogs = mysqlTable("auto_apply_logs", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  runAt: timestamp("runAt").defaultNow().notNull(),
+  jobsScanned: int("jobsScanned").default(0),
+  jobsMatched: int("jobsMatched").default(0),
+  jobsApplied: int("jobsApplied").default(0),
+  jobsSkipped: int("jobsSkipped").default(0),
+  status: mysqlEnum("status", ["success", "partial", "failed"]).default("success").notNull(),
+  errorMessage: text("errorMessage"),
+  notificationSent: boolean("notificationSent").default(false),
+  appliedJobIds: json("appliedJobIds").$type<number[]>(),
+});
+
+export type AutoApplyLog = typeof autoApplyLogs.$inferSelect;
+export type InsertAutoApplyLog = typeof autoApplyLogs.$inferInsert;
+
+/**
+ * Scheduled tasks for auto-apply and job refresh
+ */
+export const scheduledTasks = mysqlTable("scheduled_tasks", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  taskType: mysqlEnum("taskType", ["auto_apply", "job_refresh", "notification"]).notNull(),
+  intervalHours: int("intervalHours").default(6),
+  lastRunAt: timestamp("lastRunAt"),
+  nextRunAt: timestamp("nextRunAt"),
+  isEnabled: boolean("isEnabled").default(true),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type ScheduledTask = typeof scheduledTasks.$inferSelect;
+export type InsertScheduledTask = typeof scheduledTasks.$inferInsert;
