@@ -186,14 +186,14 @@ export const appRouter = router({
           jobsWithScores = jobsWithScores.filter(j => j.job.isSchengen === true);
         }
         
-        // Filter by VISA sponsorship if specified
-        if (options.visaSponsorship) {
-          jobsWithScores = jobsWithScores.filter(j => j.job.visaSponsorship === options.visaSponsorship);
-        }
-        
-        // Show only jobs with VISA sponsorship (for non-Schengen jobs)
+        // Filter by VISA sponsorship - showVisaSponsorshipOnly takes precedence over visaSponsorship
+        // to avoid conflicting filters (e.g., visaSponsorship: "no" + showVisaSponsorshipOnly: true)
         if (options.showVisaSponsorshipOnly) {
-          jobsWithScores = jobsWithScores.filter(j => j.job.visaSponsorship === "yes");
+          jobsWithScores = jobsWithScores.filter(j => 
+            j.job.isSchengen === true || j.job.visaSponsorship === "yes"
+          );
+        } else if (options.visaSponsorship) {
+          jobsWithScores = jobsWithScores.filter(j => j.job.visaSponsorship === options.visaSponsorship);
         }
         
         // Apply final limit

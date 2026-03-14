@@ -15,6 +15,8 @@ interface JobScraperConfig {
   jsearchApiKey?: string;
 }
 
+type JobSource = "linkedin" | "indeed" | "stepstone" | "energy_jobline" | "datacareer" | "adzuna" | "jsearch" | "remoteok" | "simulated";
+
 interface ExternalJob {
   id: string;
   title: string;
@@ -24,7 +26,7 @@ interface ExternalJob {
   salary?: string;
   url: string;
   postedAt: Date;
-  source: string;
+  source: JobSource;
 }
 
 // Adzuna API response types
@@ -240,7 +242,7 @@ function transformToDbJob(job: ExternalJob): InsertJob {
   
   return {
     externalId: job.id,
-    source: job.source as any,
+    source: job.source,
     title: job.title,
     company: job.company,
     location: job.location,
@@ -528,8 +530,12 @@ async function generateSimulatedSchengenJobs(
       visaSponsorship = secureRandomBool(0.5) ? "unknown" : "no";
     }
     
+    // Create deterministic externalId from template title hash for deduplication
+    const templateHash = template.title.toLowerCase().replace(/[^a-z0-9]/g, '-').substring(0, 30);
+    const externalId = `simulated-${templateHash}-${loc.code}-${company.name.toLowerCase().replace(/[^a-z0-9]/g, '-').substring(0, 20)}`;
+    
     jobs.push({
-      externalId: `simulated-${Date.now()}-${i}`,
+      externalId,
       source: "simulated",
       title: template.title,
       company: company.name,

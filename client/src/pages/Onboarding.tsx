@@ -15,7 +15,7 @@ import {
   Sparkles, Upload, FileText, User, CheckCircle2, 
   ArrowRight, ArrowLeft, MapPin, Plus, X, Briefcase
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 type OnboardingStep = "upload" | "review" | "preferences" | "complete";
 
@@ -33,6 +33,11 @@ function StepIndicator({ currentStep }: { currentStep: OnboardingStep }) {
     { id: "review", label: "Review Info", icon: FileText },
     { id: "preferences", label: "Preferences", icon: User },
   ];
+  
+  // Handle "complete" state - all steps should show as completed
+  if (currentStep === "complete") {
+    return null;
+  }
   
   const currentIndex = steps.findIndex(s => s.id === currentStep);
   
@@ -192,6 +197,7 @@ export default function Onboarding() {
     onError: (error) => {
       toast.error(error.message);
       setIsUploading(false);
+      setUploadedFileName(null);
     }
   });
 
@@ -227,11 +233,25 @@ export default function Onboarding() {
   });
 
   const updateMutation = trpc.profile.update.useMutation();
+  const navigateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (navigateTimeoutRef.current) {
+        clearTimeout(navigateTimeoutRef.current);
+      }
+    };
+  }, []);
+  
   const completeMutation = trpc.profile.completeOnboarding.useMutation({
     onSuccess: () => {
       toast.success("Profile setup complete! Redirecting to dashboard...");
       setStep("complete");
-      setTimeout(() => navigate("/"), 1500);
+      if (navigateTimeoutRef.current) {
+        clearTimeout(navigateTimeoutRef.current);
+      }
+      navigateTimeoutRef.current = setTimeout(() => navigate("/"), 1500);
     },
     onError: (error) => {
       toast.error(error.message);
