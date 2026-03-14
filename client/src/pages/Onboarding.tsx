@@ -210,7 +210,11 @@ export default function Onboarding() {
         experienceYears: parsed.experienceYears || 0,
         education: parsed.education || "",
       }));
-      toast.success("CV parsed successfully!");
+      if (parsed.success) {
+        toast.success("CV parsed successfully!");
+      } else {
+        toast.warning("CV parsing had issues. Please review and complete your information manually.");
+      }
       setIsParsing(false);
       setStep("review");
     },
@@ -350,6 +354,7 @@ export default function Onboarding() {
             <CardContent className="space-y-6">
               <FileUpload
                 onFileSelect={handleFileSelect}
+                onClear={() => setUploadedFileName(null)}
                 uploading={isUploading}
                 uploaded={!!uploadedFileName}
                 currentFileName={uploadedFileName || undefined}

@@ -383,8 +383,18 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         const profile = await db.getUserProfile(ctx.user.id);
         const blacklist = profile?.companyBlacklist || [];
-        if (!blacklist.includes(input.company)) {
-          blacklist.push(input.company);
+        
+        // Canonicalize input: trim and lowercase
+        const canonicalInput = input.company.trim().toLowerCase();
+        
+        // Check for duplicates using case-insensitive substring matching (both directions)
+        const isDuplicate = blacklist.some(existing => {
+          const existingLower = existing.toLowerCase();
+          return existingLower.includes(canonicalInput) || canonicalInput.includes(existingLower);
+        });
+        
+        if (!isDuplicate) {
+          blacklist.push(canonicalInput);
           await db.upsertUserProfile({
             userId: ctx.user.id,
             companyBlacklist: blacklist,
@@ -398,7 +408,8 @@ export const appRouter = router({
       .input(z.object({ company: z.string() }))
       .mutation(async ({ ctx, input }) => {
         const profile = await db.getUserProfile(ctx.user.id);
-        const whitelist = (profile?.companyWhitelist || []).filter(c => c !== input.company);
+        const inputLower = input.company.trim().toLowerCase();
+        const whitelist = (profile?.companyWhitelist || []).filter(c => c.toLowerCase() !== inputLower);
         await db.upsertUserProfile({
           userId: ctx.user.id,
           companyWhitelist: whitelist,
@@ -411,7 +422,8 @@ export const appRouter = router({
       .input(z.object({ company: z.string() }))
       .mutation(async ({ ctx, input }) => {
         const profile = await db.getUserProfile(ctx.user.id);
-        const blacklist = (profile?.companyBlacklist || []).filter(c => c !== input.company);
+        const inputLower = input.company.trim().toLowerCase();
+        const blacklist = (profile?.companyBlacklist || []).filter(c => c.toLowerCase() !== inputLower);
         await db.upsertUserProfile({
           userId: ctx.user.id,
           companyBlacklist: blacklist,
