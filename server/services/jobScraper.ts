@@ -530,7 +530,7 @@ async function generateSimulatedSchengenJobs(
     
     jobs.push({
       externalId: `simulated-${Date.now()}-${i}`,
-      source: "adzuna", // Use a valid source
+      source: "simulated",
       title: template.title,
       company: company.name,
       location: `${loc.city}, ${loc.country}`,

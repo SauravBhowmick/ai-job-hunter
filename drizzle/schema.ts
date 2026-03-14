@@ -61,7 +61,7 @@ export type InsertUserProfile = typeof userProfiles.$inferInsert;
 export const jobs = mysqlTable("jobs", {
   id: int("id").autoincrement().primaryKey(),
   externalId: varchar("externalId", { length: 255 }),
-  source: mysqlEnum("source", ["linkedin", "indeed", "stepstone", "energy_jobline", "datacareer", "adzuna", "jsearch", "remoteok"]).notNull(),
+  source: mysqlEnum("source", ["linkedin", "indeed", "stepstone", "energy_jobline", "datacareer", "adzuna", "jsearch", "remoteok", "simulated"]).notNull(),
   title: varchar("title", { length: 500 }).notNull(),
   company: varchar("company", { length: 255 }),
   location: varchar("location", { length: 255 }),
