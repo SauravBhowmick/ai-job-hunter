@@ -77,6 +77,8 @@ interface JSearchResponse {
  * @param countries - Country codes to query; defaults to ["de", "at", "ch", "nl", "fr"]
  * @returns An array of ExternalJob objects built from Adzuna search results; results for countries that fail to respond are omitted
  */
+const FETCH_TIMEOUT_MS = 30000;
+
 async function fetchFromAdzuna(
   appId: string,
   apiKey: string,
@@ -97,7 +99,16 @@ async function fetchFromAdzuna(
           content_type: "application/json",
         });
       
-      const response = await fetch(url);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+      
+      let response: Response;
+      try {
+        response = await fetch(url, { signal: controller.signal });
+      } finally {
+        clearTimeout(timeoutId);
+      }
+      
       if (!response.ok) {
         console.error(`Adzuna API error for ${country}:`, response.statusText);
         continue;
@@ -121,7 +132,11 @@ async function fetchFromAdzuna(
         });
       }
     } catch (error) {
-      console.error(`Error fetching from Adzuna for ${country}:`, error);
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.error(`Adzuna API timeout for ${country}`);
+      } else {
+        console.error(`Error fetching from Adzuna for ${country}:`, error);
+      }
     }
   }
   
@@ -153,12 +168,21 @@ async function fetchFromJSearch(
           num_pages: "2",
         });
       
-      const response = await fetch(url, {
-        headers: {
-          "X-RapidAPI-Key": apiKey,
-          "X-RapidAPI-Host": "jsearch.p.rapidapi.com",
-        },
-      });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+      
+      let response: Response;
+      try {
+        response = await fetch(url, {
+          headers: {
+            "X-RapidAPI-Key": apiKey,
+            "X-RapidAPI-Host": "jsearch.p.rapidapi.com",
+          },
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timeoutId);
+      }
       
       if (!response.ok) {
         console.error(`JSearch API error for ${location}:`, response.statusText);
@@ -189,7 +213,11 @@ async function fetchFromJSearch(
         }
       }
     } catch (error) {
-      console.error(`Error fetching from JSearch for ${location}:`, error);
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.error(`JSearch API timeout for ${location}`);
+      } else {
+        console.error(`Error fetching from JSearch for ${location}:`, error);
+      }
     }
   }
   
@@ -430,11 +458,10 @@ async function generateSimulatedSchengenJobs(
       keywords: ["machine learning", "renewable energy", "lstm", "forecasting", "smart grid", "python"],
     },
     {
-      const secureRandomInt = (max: number): number => {
-        const upper = Number.isFinite(max) ? Math.floor(max) : 0;
-        if (upper <= 0) return 0;
-        return randomInt(0, upper);
-      };
+      title: "Data Engineer - Power Systems",
+      description: "Build and maintain data pipelines for power systems monitoring. Work with time-series databases like InfluxDB, create dashboards in Grafana, and ensure data quality for ML models.",
+      keywords: ["data engineer", "power systems", "influxdb", "grafana", "data pipeline", "python"],
+    },
     {
       title: "AI Research Scientist",
       description: "Conduct cutting-edge research in artificial intelligence and machine learning. Publish papers, develop novel algorithms, and work with top researchers. PhD required. Visa sponsorship provided.",
@@ -448,16 +475,7 @@ async function generateSimulatedSchengenJobs(
     {
       title: "Energy Systems Analyst",
       description: "Analyze power systems data, develop predictive models for grid operations, and support decision-making with data-driven insights. Strong background in energy economics and data analysis required.",
-      if (
-        locations.length === 0 ||
-        companies.length === 0 ||
-        jobTemplates.length === 0 ||
-        hoursAgo.length === 0
-      ) {
-        throw new Error("Simulated job generation misconfigured: source arrays are empty");
-      }
-
-      const loc = locations[secureRandomInt(locations.length)];
+      keywords: ["energy systems", "analyst", "power systems", "data analysis", "grid operations"],
     },
     {
       title: "Cloud Infrastructure Engineer",
@@ -478,12 +496,6 @@ async function generateSimulatedSchengenJobs(
   const totalJobs = 40;
   const schengenCount = Math.floor(totalJobs * 0.8);
   
-  // Helper functions for secure randomness
-  const secureRandomInt = (max: number): number => {
-    if (max <= 0) return 0;
-    return randomInt(0, max);
-  };
-
   // Helper functions for secure randomness
   const secureRandomInt = (max: number): number => {
     if (max <= 0) return 0;

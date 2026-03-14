@@ -178,38 +178,6 @@ Extract the candidate's details, skills, work experience, and education.`;
 }
 
 /**
- * Attempt to extract readable plain text from a PDF buffer using a best-effort, naive method.
- *
- * This is a lightweight placeholder extraction; use a dedicated PDF parsing library for reliable results.
- *
- * @param pdfBuffer - The PDF file contents as a Buffer
- * @returns The extracted readable text from the PDF
- * @throws Error if extraction fails or the extracted text is too short to be considered valid
- */
-export async function extractTextFromPDF(pdfBuffer: Buffer): Promise<string> {
-  // This is a placeholder - in production you would use pdf-parse or similar
-  // For now, we'll just return a message indicating PDF parsing is needed
-  
-  // Basic attempt to extract text from PDF
-  const text = pdfBuffer.toString("utf8");
-  
-  // Try to find readable text patterns
-  const readableText = text
-    .replace(/[^\x20-\x7E\n\r]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-  
-  if (readableText.length > 100) {
-    return readableText;
-  }
-  
-  throw new Error(
-    "PDF text extraction requires additional processing. " +
-    "Please copy and paste your CV text directly, or upload a text-based document."
-  );
-}
-
-/**
  * Normalize CV text by standardizing line endings, collapsing excessive blank lines and spaces, replacing tabs with single spaces, and trimming surrounding whitespace.
  *
  * @returns The sanitized, normalized CV text
